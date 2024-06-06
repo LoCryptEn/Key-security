@@ -1,8 +1,10 @@
-基本介绍：
+# 基本介绍
+
 Nortm为支持RSA解密的安全实现的内核模块；
+
 RSA私钥受寄存器保护，解密运算在寄存器中实现，防止来自DRAM的攻击.
 
-Kernel目录：
+# Kernel目录
 1、make (编译)
 2、sudo make install（安装内核模块）
 3、lsmod |grep nortm （查看内核模块是否安装成功）
