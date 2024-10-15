@@ -18,19 +18,19 @@ int type = 1;
 #ifdef USER_HELPER
 #include"user_helper.h"
 /*C1,C2 :C=C_2 * R + C_1*/
-u_int64_t C_1_from_extern[16];
-u_int64_t C_2_from_extern[16];
+uint64_t C_1_from_extern[16];
+uint64_t C_2_from_extern[16];
 #endif
-u_int64_t rdtsc()
+uint64_t rdtsc()
 {
-        u_int32_t lo,hi;
+        uint32_t lo,hi;
 
 
         __asm__ __volatile__
         (
          "rdtsc":"=a"(lo),"=d"(hi)
         );
-        return (u_int64_t)hi<<32|lo;
+        return (uint64_t)hi<<32|lo;
 }
 
 void printchar(unsigned char * output, int len)
@@ -58,10 +58,10 @@ int FuncTestCompl1()
 {
 	//new added
 	clock_t  start,  finish;
-	u_int64_t startcc,  finishcc;
+	uint64_t startcc,  finishcc;
 
     double  duration;
-	u_int64_t  durationcc;
+	uint64_t  durationcc;
 	//
 	int i,fd;
 
@@ -319,7 +319,7 @@ for(i=160; i<176; ++i)
 	finishcc = rdtsc();
 
     duration = (double) (finish - start)/CLOCKS_PER_SEC;
-	durationcc = (u_int64_t)(finishcc - startcc);
+	durationcc = (uint64_t)(finishcc - startcc);
 	//duration = duration/1000;
 	//durationcc = durationcc/1000;
 

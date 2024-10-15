@@ -1,5 +1,4 @@
-#include "user_helpers.h"
-#include <cstddef>
+#include "user_helper.h"
 void BN_2_ulong(BIGNUM *a,  unsigned long b[] ){
 
     BIGNUM *c =BN_new();
@@ -310,7 +309,7 @@ void BN_2_ulong(BIGNUM *a,  unsigned long b[] ){
 #undef TEST_rsa_used_for_test_enc
 int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const char*parameter_n,const char* parameter_m \
     ,size_t parameter_e_len,size_t parameter_d_len,size_t parameter_n_len,size_t parameter_m_len, \
-    u_int64_t* c_1,u_int64_t* c_2,size_t c_1_len, size_t c_2_len, u_int64_t* ciphertext,size_t ciphertext_len)
+    uint64_t* c_1,uint64_t* c_2,size_t c_1_len, size_t c_2_len, uint64_t* ciphertext,size_t ciphertext_len)
 {
 #ifdef TEST_rsa_used_for_test_enc
     BIGNUM *e =BN_new();
@@ -368,7 +367,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
     parameter_m_len=BN_num_bits(m) ;
 
     printf("length of m: %d\n", BN_num_bits(c));
-    parameter_c_len=BN_num_bits(c) ;
+    ciphertext_len=BN_num_bits(c) ;
 
     // 使用 BN_print 函数将 BIGNUM 打印到 BIO 流中
     printf("bio, e: ");
@@ -398,7 +397,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
     printf("\n");
 #endif
     
-    u_int64_t ciphertext[32]={0};
+
 
 
     BN2048_2_ulong(c, ciphertext);
@@ -413,10 +412,10 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
     {
         int i=0;
         for(i=0;i<16;i++){
-            printf("HIGH: C_2[%d] = 0x%llx;\n", i+16,c_2[i]);
+            printf("HIGH: C_2[%d] = 0x%llx;\n", i,c_2[i]);
         }
         for(i=0;i<16;i++){
-            printf("LOW : C_1[%d] = 0x%llx;\n", i+16,c_1[i]);
+            printf("LOW : C_1[%d] = 0x%llx;\n", i,c_1[i]);
         }
 
     }

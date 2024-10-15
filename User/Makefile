@@ -14,7 +14,7 @@ LDFLAGS = -L$(OPENSSL_DIR)/lib64 -lssl -lcrypto -lpthread -std=c99
 TARGET = LearnTest_program
 
 # 源文件
-SRCS = user.c user_helper.c
+SRCS = $(wildcard *.c) 
 
 # 指定 build 目录
 BUILD_DIR = build
