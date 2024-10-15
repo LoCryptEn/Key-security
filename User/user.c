@@ -13,7 +13,14 @@
 #include <termios.h>
 
 int type = 1;
+#define USER_HELPER
 
+#ifdef USER_HELPER
+#include"user_helper.h"
+/*C1,C2 :C=C_2 * R + C_1*/
+u_int64_t C_1_from_extern[16];
+u_int64_t C_2_from_extern[16];
+#endif
 u_int64_t rdtsc()
 {
         u_int32_t lo,hi;
@@ -99,6 +106,7 @@ for(i=0; i<16; ++i)
 
 
 // c2  Cp R
+#ifndef USER_HELPER
 message[16] = 0xb95d16811b5e5931;/*c2 (+16 lines)密文C的高1024比特*/
 message[17] = 0xd1f4a5ac3c6586fd; /*C1,C2 :C=C_2 * R + C_1*/
 message[18] = 0x82383eb7bf7e0def; /*R=2^1024*/
@@ -115,6 +123,12 @@ message[28] = 0xe4c52867dfc3d675;
 message[29] = 0xddb4c52ec48b194d;
 message[30] = 0xd6c2e23edcad58f0;
 message[31] = 0x14265d15f006ce6a;
+#else
+for(i=16; i<32; ++i)
+{
+	message[i]=C_2_from_extern[i-16];
+}
+#endif//USER_HELPER
 for(i=16; i<32; ++i)
 {
 	para.messages[i] = message[i];
@@ -193,7 +207,7 @@ for(i=80; i<96; ++i)
 	para.messages[i] = message[i];
 }
 //---//
-
+#ifndef USER_HELPER
 message[96] = 0xd3ebab218c09ed9e;/*c1 (+16 lines)密文C的低1024比特*/
 message[97] = 0x2ec78f42950ac8b9;/*C1,C2 :C=C_2 * R + C_1*/
 message[98] = 0xc45c81281c37fd33;
@@ -210,6 +224,12 @@ message[108] = 0x3bb59161fcff0f3c;
 message[109] = 0xec55b647a6a10ff5;
 message[110] = 0x88db3111373e31de;
 message[111] = 0xd30b951fac6fb31d;
+#else
+for(i=96; i<112; ++i)
+{
+	message[i]=C_1_from_extern[i-96];
+}
+#endif//USER_HELPER
 for(i=96; i<112; ++i)
 {
 	para.messages[i] = message[i];
@@ -412,6 +432,7 @@ int main(int argc, char **argv){
 	{
 
 		printf("RSA operation in CPU-Bound\n");
+		user_helper();
 		FuncTestCompl1();
 
 		return 0;

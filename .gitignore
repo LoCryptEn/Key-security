@@ -6,4 +6,3 @@
 **/*.symvers
 **/*.mod
 **/*.mod.c
-**/user
