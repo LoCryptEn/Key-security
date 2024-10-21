@@ -307,8 +307,8 @@ void BN_2_ulong(BIGNUM *a,  unsigned long b[] ){
 //ret:   
 #define DEBUG_rsa_used_for_test_enc
 #undef TEST_rsa_used_for_test_enc
-int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const char*parameter_n,const char* parameter_m \
-    ,size_t parameter_e_len,size_t parameter_d_len,size_t parameter_n_len,size_t parameter_m_len, \
+int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_n,const char* parameter_m \
+    ,size_t parameter_e_len,size_t parameter_n_len,size_t parameter_m_len, \
     uint64_t* c_1,uint64_t* c_2,size_t c_1_len, size_t c_2_len, uint64_t* ciphertext,size_t ciphertext_len)
 {
 #ifdef TEST_rsa_used_for_test_enc
@@ -338,7 +338,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
     printf("length of m: %d\n", BN_num_bits(m));
 #else
     BIGNUM *e =BN_new();
-    BIGNUM *d =BN_new();
+
     BIGNUM *n =BN_new();
     BIGNUM *m =BN_new();
     BIGNUM *c =BN_new();
@@ -346,7 +346,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
     BN_CTX * ctx = BN_CTX_new();
 
     BN_hex2bn(&e,parameter_e);
-    BN_hex2bn(&d,parameter_d);
+
     BN_hex2bn(&n,parameter_n);
     BN_hex2bn(&m,parameter_m);
 
@@ -359,8 +359,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
 
     printf("length of e: %d\n", BN_num_bits(e));
     parameter_e_len=BN_num_bits(e) ;
-    printf("length of d: %d\n", BN_num_bits(d));
-    parameter_d_len=BN_num_bits(d) ;
+
     printf("length of n: %d\n", BN_num_bits(n));
     parameter_n_len=BN_num_bits(n) ;
     printf("length of m: %d\n", BN_num_bits(m));
@@ -375,11 +374,7 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_d,const c
         fprintf(stderr, "Failed to print BIGNUM\n");
     }
     printf("\n");
-    printf("bio, d: ");
-    if (BN_print(bio, d) <= 0) {
-        fprintf(stderr, "Failed to print BIGNUM\n");
-    }
-    printf("\n");
+
     printf("bio, n: ");
     if (BN_print(bio, n) <= 0) {
         fprintf(stderr, "Failed to print BIGNUM\n");
