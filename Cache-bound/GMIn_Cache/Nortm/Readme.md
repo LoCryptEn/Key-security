@@ -19,11 +19,18 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 	- 在User目录下，执行make命令，编译测试程序；
 3. 运行
 	- 查看测试项：sudo ./user
-	- 内核模块初始化：sudo ./user 1 1 1 1 1
-	- 依次进行功能测试：sudo ./user 1 1 1 X 1,将X换为具体的测试项
+	- 内核模块初始化自检：sudo ./user 1
+	- 依次进行功能测试：sudo ./user X [options paramter],将X换为具体的测试项
+		- -d 表示使用调试模式
+		- -i 表示输入文件
+		- -k 表示密钥文件
+		- -o 表示输出文件(在SM2 verify时表示签名文件)
+		- -l 表示循环次数，0表示执行直到成功
 4. 卸载内核模块
    	- sudo rmmod nortm
 
 上述命令在Ubuntu16.04环境中能运行成功
 
-注：当前代码没有使用TSX特性，如果设备支持TSX，请在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
+注1：若使用Safe SM2 KeyGen得到SM2公私钥文件，那么此文件只能使用在Safe SM2模式下
+注2：密钥与密文输出以16进制字符串的形式输出，解密的消息以字符形式输出
+注3：如果设备支持TSX，请确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE

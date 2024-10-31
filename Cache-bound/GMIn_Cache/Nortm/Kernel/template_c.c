@@ -51,7 +51,7 @@
 MODULE_AUTHOR("<DACAS>");
 MODULE_DESCRIPTION("Crypto engine driver");
 MODULE_LICENSE("GPL");
-#define DEBUG
+#define RAND_DEBUG
 
 struct Template_dev{
 	struct miscdevice *cdev;		
@@ -259,7 +259,7 @@ int tpm_gen_random(int length, unsigned char *return_random){
 		//get_random_bytes(return_random, length);
 		return length;
 	}*///For correctness test
-#ifdef DEBUG
+#ifdef RAND_DEBUG
 	{
 		get_random_bytes(return_random, length);
 		return length;
@@ -339,13 +339,22 @@ int tpm_gen_random(int length, unsigned char *return_random){
 #endif
 }
 
+char buff[65535];
 
 void printhex(unsigned char * output, int len){
-    int i = 0;
-    for(i = 0; i < len; i++)
+    int i = 0, loc = 0;
+    // for(i = 0; i < len; i++)
+    // {
+    //     printk(" %02x", output[i]);
+    // }
+	// printk(" \n");
+	for(i = 0; i < len; i++)
     {
-        printk(" %02x", output[i]);
+        loc += sprintf(buff+loc, " %02x", output[i]);
     }
+	buff[loc] = 0;
+	printk("%s\n", buff);
+	
 }
 
 int __init init_template(void){
@@ -355,16 +364,17 @@ int __init init_template(void){
 	sema_init(&sem,1);
 	CEllipticCurveInitParam();
 	//IntegrityVerifed = verify_mod_sign();
-    IntegrityVerifed = 1;
+	IntegrityVerifed = 1;
+	printk(KERN_DEBUG "dirver %s loaded\n", module_name);
 	return 0;
 
 }
 
-void reg_init(void *key);
+void reg_init(void *key);	//将key保存在cpu中，由汇编实现
 int init_test(BYTE *out);
 
 /*
-*generate the master key from the input PIN
+*generate the master key from the input masterKey
 * PBKDF2 with the salt (specified in code) for 1000 times to generate the 128 bit master key
 * the master key is set in each cpu
 * 1 for success, 0 for fail
@@ -484,6 +494,7 @@ int sm2_safe_keygen(Gen_Key_Para *sm2keypara_u){
 	CECCPrivateKey sk;
 	Gen_Key_Para sm2keypara_k; 
 	int i,rc;
+	//SYX: code warm for what?
 	unsigned char temp[16] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0}; //temp var for warm
 
 
@@ -894,7 +905,7 @@ int sm2_safe_sign(SM2_SIGN_Para *sm2para_u){
 		}
 #endif
 
-		SM4DecryptWithMode(sm2para_k.d, 32, sm2para_k.d, 32, NULL, ECB, NULL);
+		SM4DecryptWithMode(sm2para_k.d, 32, sm2para_k.d, 32, NULL, ECB, NULL); //SYX: d need to encrypt?
 		CMpiInport(&(sk.m_paramD), sm2para_k.d, 32);
 		SM4EncryptWithMode((BYTE *)&(sk.m_paramD), sizeof(CMpi), (BYTE *)&(sk.m_paramD), sizeof(CMpi), NULL, ECB, NULL);
 		
@@ -1010,7 +1021,7 @@ int sm2_verify(SM2_SIGN_Para *sm2para_u){
 	return rc;
 }
 
-
+//SYX : need to check the point on curve?
 int sm2_dec(SM2_Para *sm2para_u){
 	CECCPrivateKey sk;
 	SM2_Para *sm2para_k = NULL;
@@ -1069,6 +1080,8 @@ int sm2_dec(SM2_Para *sm2para_u){
 	return rc;
 }
 
+
+// SYX : final msg encrypted by SM4, is it nessasery? what's for sm4 dec method 
 int sm2_safe_dec(SM2_Para *sm2para_u){
 	CECCPrivateKey sk;
 
@@ -1127,7 +1140,7 @@ int sm2_safe_dec(SM2_Para *sm2para_u){
 		}
 #endif
 
-		SM4DecryptWithMode(sm2para_k.d, 32, sm2para_k.d, 32, NULL, ECB, NULL);
+		SM4DecryptWithMode(sm2para_k.d, 32, sm2para_k.d, 32, NULL, ECB, NULL);		//SYX: d need to encrypt?
 		CMpiInport(&(sk.m_paramD), sm2para_k.d, 32);
 		SM4EncryptWithMode((BYTE *)&(sk.m_paramD), sizeof(CMpi), (BYTE *)&(sk.m_paramD), sizeof(CMpi), NULL, ECB, NULL);
 		
@@ -1207,6 +1220,12 @@ int sm2_enc(SM2_Para *sm2para_u){
 		vfree(sm2para_k);
 		return 0;
 	}
+
+#ifdef PRINT_DBG
+	printk( " SM2_Para: \n");
+	printhex((unsigned char *)sm2para_k, sizeof(SM2_Para));
+#endif
+
 	CMpiInport(&x,sm2para_k->x,32);
 	CMpiInport(&y,sm2para_k->y,32);
 	SetPublicKey(&pk,&x,&y);
@@ -1445,6 +1464,7 @@ int sm3_final(SM3_Para *sm3para_u) {
 	return 1;
 }
 
+// SYX : sm3 safe , by HMAC
 int sm3_safe_init(SM3_Para *sm3para_u){
 	SM3_Para *sm3para_k = NULL;
 #ifdef TSX_ENABLE
@@ -1845,6 +1865,8 @@ HMACFINALDECERR:
 #endif
 	return 0;
 }
+
+// SYX: key used in Hmac is strange
 /*generate the ipad of the input in TSX*/
 int safe_ipad(GM_PAD *gm_pad_u){
 	GM_PAD gm_pad_k;
@@ -1997,6 +2019,9 @@ SAFEOPADERR:
 	return 0;
 }
 
+
+//SYX : IV comes from user? wrong ! Distinguish between the first CBC encryption (re random IV to encrypt new messages) and continuing CBC encryption (continuing to add messages after the last message)
+//SYX : This code has already used padding, why do you need to continue using the last block from the previous set as IV?
 int sm4_op(SM4_Para *sm4para_u){
 	SM4_Para *sm4para_k =NULL; 
 	unsigned char temp[16] = {0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0};
@@ -2142,7 +2167,7 @@ static long template_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		goto err;
 	}	
 	switch(cmd){
-		case INIT:{
+		case INIT:{ // init the sm4 key to register dr0,dr1 in each cpu, to expose only crypto message out of cache
 			unsigned char key[MASTER_KEY_SIZE];
 			unsigned char pin[PIN_LEN+SALT_LEN];
 			INIT_Para *initarg_u = (INIT_Para *)arg;

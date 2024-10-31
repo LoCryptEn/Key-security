@@ -1056,7 +1056,9 @@ void CEllipticCurveInitParam(void)
 	
 }
 
-
+// By encrypt and decrypt 
+// affine format
+// p(x, y) = m*Pub_point
 void CEllipticCurveMultiplyPubByTable5(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX, CMpi *PubY)
 {
 	CMpi z;
@@ -1074,6 +1076,7 @@ void CEllipticCurveMultiplyPubByTable5(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX, CM
 	return;
 }
 
+// By decrypt_safe
 int CEllipticCurveMultiplyPubByTable5Safe(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX, CMpi *PubY,unsigned char *pbX2, unsigned char *pbY2)
 {
 #ifdef TSX_ENABLE
@@ -1161,7 +1164,9 @@ int CEllipticCurveMultiplyPubByTable5Safe(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX,
 #endif
 }
 
-
+// By table5 and verify
+// affine format
+// p(x, y, z) = m*Pub_point
 #define WINDOWS_BITS		(4)
 void CEllipticCurveMultiplyPubByTable6(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi *PubX, CMpi *PubY)
 {
@@ -1216,7 +1221,7 @@ void CEllipticCurveMultiplyPubByTable6(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi 
 	vfree(pre_table);
 }
 
-
+// By table5_safe
 int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi *PubX, CMpi *PubY)
 {
 	int i, k, pos;
@@ -1370,7 +1375,7 @@ int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CM
 	return 1;
 }
 
-
+// p(x2, y2, z2) = 2p(x, y, z)
 void CEllipticCurveDoubleMplJacobian6(CMpi *x2, CMpi *y2, CMpi *z2, CMpi *x, CMpi *y, CMpi *z)
 {
 	CMpiAssignCMpi(x2,x);
@@ -1379,6 +1384,7 @@ void CEllipticCurveDoubleMplJacobian6(CMpi *x2, CMpi *y2, CMpi *z2, CMpi *x, CMp
 	CEllipticCurveDoubleMplJacobian3(x2, y2, z2);
 }
 
+// p(x, y, z) = 2p(x, y, z)
 void CEllipticCurveDoubleMplJacobian3(CMpi *x, CMpi *y, CMpi *z)
 {
 	CMpl lltmp;
@@ -1539,6 +1545,9 @@ void CEllipticCurveDoubleMplJacobian3(CMpi *x, CMpi *y, CMpi *z)
 	return;
 }
 
+// By encrypt, sign, generatekey, setprivatekey
+// affine format
+// do mG
 void CEllipticCurveMultiplyGByTable3(CMpi *x, CMpi *y, CMpi *m)
 {
 	CMpi z;
@@ -1555,6 +1564,9 @@ void CEllipticCurveMultiplyGByTable3(CMpi *x, CMpi *y, CMpi *m)
 	CEllipticCurveJacobian2Stand(x,y,&z);
 }
 
+// By sign_safe and generatekey_safe
+// affine format
+// p(x, y, z) = mG, G is fixed
 int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 	CMpi z;
 	int iLenOfBits,i;
@@ -1616,7 +1628,10 @@ int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 			status = _xbegin();
 			if (status == _XBEGIN_STARTED)
 				break;
-			//printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DBG
+			printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#endif
+
 		}
 #endif
 
@@ -1700,8 +1715,10 @@ int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 				status = _xbegin();
 				if (status == _XBEGIN_STARTED)
 					break;
-				//if(try == TSX_MAX_TIMES-1)
-				//printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DBG
+				if(try == TSX_MAX_TIMES-1)
+					printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
+#endif
 			}
 #endif
 
@@ -1783,7 +1800,9 @@ int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 			status = _xbegin();
 			if (status == _XBEGIN_STARTED)
 				break;
-			//printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction final %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DUB
+			printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction final %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
+#endif
 		}
 #endif
 
@@ -1838,6 +1857,9 @@ int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 #endif
 }
 
+// By verify and table3
+// Jacobian format
+// p(x, y, z) = mG, G is fixed
 void CEllipticCurveMultiplyGByTable4(CMpi *x, CMpi *y, CMpi *z, CMpi *m)
 {
 	int iLenOfBits,i;
@@ -1903,6 +1925,9 @@ void CEllipticCurveMultiplyGByTable4(CMpi *x, CMpi *y, CMpi *z, CMpi *m)
 	}
 }
 
+
+// Jacobian format
+// p(x, y, z) = p(x, y, z) + p(mx, my, mz) 
 void CEllipticCurveAddMplJacobian6(CMpi *x, CMpi *y, CMpi *z, CMpi *mx, CMpi *my, CMpi *mz)
 {
 	CMpl lltmp;
@@ -2449,8 +2474,10 @@ int Verify(CECCPublicKey *pk,unsigned char *pDigest, int iLenOfDigest, unsigned 
 
 	CMplModAssign(&cmpitemp,&t,&(g_paramN->m_oModulus));
 	CMplAssignCMpi(&t,&cmpitemp);
-	
-	//printk("verify id is %d verify res is %d\n",id,ret);
+
+#ifdef PRINT_DBG	
+	printk("verify id is %d verify res is %d\n",id,ret);
+#endif
 
 	if(CMpiEqualCMpi(&r,&(t.l))==1)
 		ret = 1;
@@ -2644,7 +2671,9 @@ int GenerateKeySafe(CECCPrivateKey *sk,  unsigned char *pRandomUser,int iLenOfRa
 			status = _xbegin();
 			if (status == _XBEGIN_STARTED)
 				break;
-			//printk("DEBUG: GenerateKeySafe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DBG
+			printk("DEBUG: GenerateKeySafe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#endif
 		}
 #endif
 
@@ -2894,7 +2923,9 @@ int SignSafe(CECCPrivateKey *sk,unsigned char *pOut, unsigned char *pIn, int iLe
 			status = _xbegin();
 			if (status == _XBEGIN_STARTED)
 				break;
-			//printk("DEBUG: Transaction 2 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DBG
+			printk("DEBUG: Transaction 2 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#endif
 		}
 #endif
 
@@ -3029,13 +3060,13 @@ int Sign(CECCPrivateKey *sk,unsigned char *pOut, unsigned char *pIn, int iLen, u
 		CMplAssignCMpi(&cmpltemp,&tmp);
 		CMplAddAssign(&lltmp,&cmpltemp);
 		CMplModAssign(&x,&lltmp,&(g_paramN->m_oModulus));
-		if(CMpiEqualN(&x,0) == 1)
+		if(CMpiEqualN(&x,0) == 1)	// r != 0
 		{
 			return 0;
 		}
 		CMpiInit(&s);
 		CMpiAdd(&s,&x,&rnd);
-		if(CMpiEqualCMpi(&(g_paramN->m_oModulus),&s) == 1)
+		if(CMpiEqualCMpi(&(g_paramN->m_oModulus),&s) == 1)	//r+k != n
 		{
 			return 0;
 		}
@@ -3176,7 +3207,7 @@ int SignMessageSafe(CECCPrivateKey *sk, unsigned char *pOut, unsigned char *pMsg
 			return 0;
 		}
 
-		PriHashUserId(sk,hashResult, pUserName, iLenOfUserName);
+		PriHashUserId(sk,hashResult, pUserName, iLenOfUserName);		//SYX: move out of the tsx?
 
 		// the 2nd hash
 		HashInit(&hashState, hashResult, HASH_256);
@@ -3290,7 +3321,9 @@ int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char 
 				if(_xtest()){
 					_xend();
 				}
-				//printk("DEBUG: Transaction KDF aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#ifdef PRINT_DBG
+				printk("DEBUG: Transaction KDF aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
+#endif
 				return 0;
 			}	
 			status = _xbegin();
@@ -3306,7 +3339,7 @@ int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char 
 
 		AuthenticateMsg(digest, secret, pbOut, iLenOfOut);
 		memset(secret,0,iLenOfSecret);
-		SM4EncryptWithMode(pbOut,iLenOfOut,pbOut,iLenOfOut,NULL,ECB,NULL);
+		SM4EncryptWithMode(pbOut,iLenOfOut,pbOut,iLenOfOut,NULL,ECB,NULL); //SYX: need to encrypt?
 
 #ifdef TSX_ENABLE
 		tsxflag = 1;
@@ -3328,7 +3361,9 @@ int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char 
 	while (i < HASH_256)
 	{
 		if (digest[i] != pbIn[iLenOfSecret+i]){
-			//printk("digest[i] %x, pbIn[iLenOfSecret+i] %x\n",digest[i],pbIn[iLenOfSecret+i]);
+#ifdef PRINT_DBG
+			printk("digest[i] %x, pbIn[iLenOfSecret+i] %x\n",digest[i],pbIn[iLenOfSecret+i]);
+#endif
 			return 0;
 		}
 		i++;

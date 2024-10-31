@@ -5,8 +5,8 @@
 void Sms4ExtendKey(unsigned int *subkey, const unsigned char *key);
 void Sms4Encrypt(unsigned char *cipher, const unsigned char *plain, const unsigned int *subkey);
 void Sms4Decrypt(unsigned char *plain, const unsigned char *cipher, const unsigned int *subkey);
-void SM4UnPad(BYTE *out, int outLength, BYTE *Plain, int *PlainLength);
-void SM4Pad(BYTE *out, int outLength, BYTE *Plain, int *PlainLength);
+int SM4UnPad(BYTE *out, int outLength, BYTE *Plain);
+int SM4Pad(BYTE *out, int outLength, BYTE *Plain);
 unsigned int Sms4F(unsigned int w0, unsigned int w1, unsigned int w2, unsigned int w3, unsigned int rkey);
 unsigned int Sms4FinExtendedKey(unsigned int w0, unsigned int w1, unsigned int w2, unsigned int w3, unsigned int ck);
 // Register related function
@@ -142,8 +142,12 @@ unsigned int Sms4FinExtendedKey(unsigned int w0, unsigned int w1, unsigned int w
 }
 
 
-void SM4Pad(BYTE *Plain, int PlainLength, BYTE* in, int *inLength)
+// SYX : what's wrong with the SM4 padding
+// 此SM4更多使用了原地加解密
+//PKCS 7 
+int SM4Pad(BYTE *Plain, int PlainLength, BYTE* in)
 {
+    int pad, inLength;
 /*    int BlockNumber,Remainder,i;
     BYTE temp[*inLength];
 
@@ -161,16 +165,21 @@ void SM4Pad(BYTE *Plain, int PlainLength, BYTE* in, int *inLength)
     }
     temp[*inLength - 1] = 16 - Remainder;
     memcpy(in,temp,*inLength);*/
-    *inLength = PlainLength;
-    memcpy(in,Plain,*inLength);
+    inLength = (PlainLength + 15)/ 16  * 16;
+    memcpy(in,Plain,PlainLength);
+    pad = inLength - PlainLength;
+    if(pad)
+        memset(in+PlainLength, pad, pad);
+    return inLength;
 }
 
-void SM4UnPad(BYTE *out, int outLength, BYTE *Plain, int *PlainLength)
+//SYX : 考虑到程序中使用的原地加解密，这里uppadding就不执行了
+int SM4UnPad(BYTE *out, int outLength, BYTE *Plain)
 {
     // *PlainLength = outLength - out[outLength - 1];
     // memcpy(Plain,out,*PlainLength);
-    *PlainLength = outLength;
-    memcpy(Plain,out,*PlainLength);
+    memcpy(Plain, out, outLength);
+    return outLength;
 }
 
 void xorArray(unsigned char *buf1,unsigned char *buf2,int len){
@@ -188,22 +197,19 @@ int  SM4Encrypt(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength, BY
     BYTE PlainAndPad[(PlainLength / 16 + 1) * 16];
     unsigned int subkey[SMS4_ROUND];
     int len,i;
-    len = (PlainLength / 16 + 1) * 16;
-    SM4Pad(Plain,PlainLength,PlainAndPad,&len);
+    len = SM4Pad(Plain,PlainLength,PlainAndPad);
     Sms4ExtendKey(subkey,Key);
     for(i = 0;i < len / 16;i++)
     {
         Sms4Encrypt(Cipher + i * 16,PlainAndPad + i * 16,subkey);
     }
-    CipherLength = len;
-    return CipherLength;
+    return len;
 }
 int SM4Encrypt_Reg(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength, BYTE *Key)
 {
     BYTE PlainAndPad[(PlainLength + 15)/ 16  * 16];
     int len,i;
-    len = (PlainLength + 15)/ 16  * 16;
-    SM4Pad(Plain,PlainLength,PlainAndPad,&len);
+    len = SM4Pad(Plain,PlainLength,PlainAndPad);
     for(i = 0;i < len / 16;i++)
     {
         if(Key==NULL)
@@ -211,8 +217,7 @@ int SM4Encrypt_Reg(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,
         else
             sm4_enc(Key, PlainAndPad+i*16, Cipher+i*16);
     }
-    CipherLength = len;
-    return CipherLength;
+    return len;
 }
 
 int SM4EncryptCBC(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, BYTE *Key)
@@ -221,9 +226,8 @@ int SM4EncryptCBC(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,u
 	 BYTE PlainAndPad[(PlainLength + 15)/ 16  * 16];
    	unsigned int subkey[SMS4_ROUND];
     int len,i;
-    len = (PlainLength + 15)/ 16  * 16;
+    len = SM4Pad(Plain,PlainLength,PlainAndPad);
     memcpy(preBlock,IV,16);
-    SM4Pad(Plain,PlainLength,PlainAndPad,&len);
     Sms4ExtendKey(subkey,Key);
 
     for(i = 0;i < len / 16;i++)
@@ -232,17 +236,15 @@ int SM4EncryptCBC(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,u
 		Sms4Encrypt(Cipher+i*16,preBlock,subkey);
 		memcpy(preBlock,Cipher+i*16,16);
     }
-    CipherLength = len;
-    return CipherLength;
+    return len;
 }
 int SM4EncryptCBC_Reg(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, BYTE *Key)
 {
     unsigned char preBlock[16];
     BYTE PlainAndPad[(PlainLength+15) / 16 * 16];
     int len,i;
-    len = (PlainLength + 15)/ 16  * 16;
+    len = SM4Pad(Plain,PlainLength,PlainAndPad);
     memcpy(preBlock,IV,16);
-    SM4Pad(Plain,PlainLength,PlainAndPad,&len);
 
     for(i = 0;i < len / 16;i++)
     {
@@ -253,8 +255,7 @@ int SM4EncryptCBC_Reg(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLeng
             sm4_enc(Key, preBlock, Cipher+i*16);
         memcpy(preBlock,Cipher+i*16,16);
     }
-    CipherLength = len;
-    return CipherLength;
+    return len;
 }
 
 int SM4Decrypt(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength, BYTE *Key)
@@ -272,13 +273,12 @@ int SM4Decrypt(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength, BYT
         // }
         // printk(KERN_INFO "Dec Plain Round %d end",i);
     }
-    SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
+    return SM4UnPad(PlainAndPad,CipherLength,Plain);
     // printk(KERN_INFO "Dec Plain Final Start");
     // for(i=0;i<PlainLength;i++){
     //     printk(KERN_INFO "%x", Plain[i]);
     // }
     // printk(KERN_INFO "Dec Plain Final end");
-    return PlainLength;
 }
 int SM4Decrypt_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength, BYTE *Key)
 {
@@ -297,12 +297,11 @@ int SM4Decrypt_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength,
         else
             sm4_dec(Key, Cipher+i*16, PlainAndPad+i*16);
     }
-    SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
+    return SM4UnPad(PlainAndPad,CipherLength,Plain);
     // printk("Plain start: %d\n", PlainLength);
     // for(j=0;j<PlainLength;j++)
     //     printk("%x",*(Plain+j));
     // printk("Plain final\n");
-    return PlainLength;
 }
 
 int SM4DecryptCBC(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLength, unsigned char *IV, BYTE *Key)
@@ -319,13 +318,12 @@ int SM4DecryptCBC(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLength, 
 	    xorArray(PlainAndPad+i*16,preBlock,16);  //xor with previous block
 	    memcpy(preBlock,Cipher+i*16,16);     //prepare
     }
-    SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
+    return SM4UnPad(PlainAndPad,CipherLength,Plain);
     // printk(KERN_INFO "Dec Plain Final Start");
     // for(i=0;i<PlainLength;i++){
     //     printk(KERN_INFO "%x", Plain[i]);
     // }
     // printk(KERN_INFO "Dec Plain Final end");
-    return PlainLength;
 }
 
 int SM4DecryptCBC_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLength, unsigned char *IV, BYTE *Key)
@@ -352,14 +350,13 @@ int SM4DecryptCBC_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLeng
         xorArray(PlainAndPad+i*16,preBlock,16);
         memcpy(preBlock,Cipher+i*16,16);
     }
-    SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
+    return SM4UnPad(PlainAndPad,CipherLength,Plain);
     // printk(KERN_INFO "Dec Plain Final Start");
     // for(i=0;i<PlainLength;i++){
     //     printk(KERN_INFO "%x", Plain[i]);
     // }
     // printk(KERN_INFO "Dec Plain Final end");
     // printk(KERN_INFO "return:%d", PlainLength);
-    return PlainLength;
 }
 
 int SM4EncryptWithMode(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, int mode, BYTE *Key)

@@ -29,7 +29,8 @@
 #define _XABORT_NESTED		(1 << 5)
 #define _XABORT_CODE(x)		(((x) >> 24) & 0xff)
 
-#define TSX_MAX_TIMES 200
+#define TSX_MAX_TIMES 1000
+//#define PRINT_DBG
 //#define DEBUG  1
 
 #define __rtm_force_inline __attribute__((__always_inline__)) inline
