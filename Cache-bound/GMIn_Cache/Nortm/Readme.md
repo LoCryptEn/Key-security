@@ -15,19 +15,20 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 	- 在Kernel目录下，执行sudo make install命令，安装内核模块；
 	- 查看内核模块是否安装成功：lsmod |grep nortm
 	- chmod 777 /dev/nortm (修改权限)
-2. 编译用户态测试程序
+2. 卸载内核模块
+   	- sudo make uninstall
+3. 编译用户态测试程序
 	- 在User目录下，执行make命令，编译测试程序；
-3. 运行
-	- 查看测试项：sudo ./user
-	- 内核模块初始化自检：sudo ./user 1
-	- 依次进行功能测试：sudo ./user X [options paramter],将X换为具体的测试项
+4. 用户态程序运行
+	- 查看测试项：./user
+	- 内核模块初始化自检：./user 1
+	- 依次进行功能测试：./user X [options paramter],将X换为具体的测试项
 		- -d 表示使用调试模式
 		- -i 表示输入文件
 		- -k 表示密钥文件
 		- -o 表示输出文件(在SM2 verify时表示签名文件)
 		- -l 表示循环次数，0表示执行直到成功
-4. 卸载内核模块
-   	- sudo rmmod nortm
+
 
 上述命令在Ubuntu16.04环境中能运行成功
 
