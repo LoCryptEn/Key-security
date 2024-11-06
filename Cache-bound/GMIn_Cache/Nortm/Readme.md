@@ -33,5 +33,7 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 上述命令在Ubuntu16.04环境中能运行成功
 
 注1：若使用Safe SM2 KeyGen得到SM2公私钥文件，那么此文件只能使用在Safe SM2模式下
+
 注2：密钥与密文输出以16进制字符串的形式输出，解密的消息以字符形式输出
+
 注3：如果设备支持TSX，请确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
