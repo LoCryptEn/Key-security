@@ -95,9 +95,9 @@ VIRSA:
 	### key of AES-256 stored in Debug registers ###
 
 	### 1. Cq^(dmq1) mod q ###
-	movq		64(%rsp), %rsi
-	addq		$640, %rsi	#for q
-	movq		%rsi, %mm0
+	movq		64(%rsp), %rsi # address  of A in %rsi now
+	addq		$640, %rsi	# A+640 is address of q in %rsi now
+	movq		%rsi, %mm0  # address of q in %mm0
 
 
 
@@ -210,24 +210,7 @@ VIRSA:
 
 
 	vmovq		%xmm31, %rdi
-/*	
-	vmovdqu64 	%ymm24, (%rdi)
-	vmovdqu64 	%ymm25, 32(%rdi)
-	vmovdqu64 	%ymm26, 64(%rdi)
-	vmovdqu64 	%ymm27, 96(%rdi)
 
-	vmovdqu64 	A0, (%rdi)
-	vmovdqu64 	A1, 32(%rdi)
-	vmovdqu64 	A2, 64(%rdi)
-	vmovdqu64 	A3, 96(%rdi)
-	vmovdqu64 	B0, 128(%rdi)
-	vmovdqu64 	B1, 160(%rdi)
-	vmovdqu64 	B2, 192(%rdi)
-	vmovdqu64 	B3, 224(%rdi)
-
-	# vmovdqu64 	%zmm24, (%rdi)
-	# vmovdqu64 	%zmm25, 64(%rdi)
-*/
 
 	#########################################################
 	### 	prologue 	###

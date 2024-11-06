@@ -1,5 +1,5 @@
 obj-m += nortm.o 
-nortm-objs := template_c.o reg_init.o VIRSA.o Comcp.o Comcq.o
+nortm-objs := template_c.o reg_init.o VIRSA.o  Comcq.o
 
 all:
 	make -C /lib/modules/`uname -r`/build M=$(PWD) modules

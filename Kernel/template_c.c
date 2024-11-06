@@ -157,23 +157,34 @@ unsigned long temp[96]={0};
 //p c2 r3r c1 r2r//
 
 //encp//
-temp[0] = 0xfd9cafcc3c045c26;/*(+65 lines) 计算CRT运算需要的Cp*R，*//*p(+16 lines 1024 bit)*/
-temp[1] = 0x32ef097e0535be96; /*p 每128bit分组 被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}异或*/
-temp[2] = 0x6c0497dcf7f56738;
-temp[3] = 0xde34a27ed307fe31;
-temp[4] = 0x96c3675f530df01f;
-temp[5] = 0x9b87e0880fbe58db;
-temp[6] = 0x6ea5483e79481b2d;
-temp[7] = 0xcf69efcba61e2545;
-temp[8] = 0xfa66443cf2c54c1f;
-temp[9] = 0x91a636d09e5326d4;
-temp[10] = 0xe8360376b8d9f509;
-temp[11] = 0x67e0b4b79df3d136;
-temp[12] = 0x71cf6321fa2fdec5;
-temp[13] = 0xc9d10b89cc635181;
-temp[14] = 0x67aca100bfc3bfa8;
-temp[15] = 0x692da5df8d2d0e48;
+temp[0]=0x7cd3c60035aa103b; /*(+65 lines) 计算CRT运算需要的Cp*R，*//*p(+16 lines 1024 bit)*/
+temp[1]=0x62c462b84c626ab3; /*p 每128bit分组 aes加密*/
+temp[2]=0x07c36c3b1d26b798;
+temp[3]=0x1767b593144915a3;
+temp[4]=0xcd79fa2c94c7be6d;
+temp[5]=0x52f5b349e0437c37;
+temp[6]=0x7d8c47d6dbbec03a;
+temp[7]=0x76900de9fb50e794;
+temp[8]=0x8a80021474be9afb;
+temp[9]=0x4ce22a776c3ea050 ;
+temp[10]=0x2235bde11c242412;
+temp[11]=0xdb60d7eb582519e9;
+temp[12]=0x3f56fc03471498af;
+temp[13]=0x41c16f6c1f2114c1;
+temp[14]=0xe95e0d321ac555df;
+temp[15]=0x1bf75b4eda667825;
 
+
+#define DEBUG_RSAREG_ENC_P
+#ifdef DEBUG_RSAREG_ENC_P
+
+printk(KERN_INFO "向A注入 p_enc parameters : AT@ File: %s, Function: %s, Line: %d\n", __FILE__, __func__, __LINE__);
+
+for( int j=0; j<16; ++j)/*c2 (+3 lines)密文C*/
+{
+	A[j] = temp[j]  ;
+}
+#endif //DEBUG_RSAREG_ENC_P
 int j;
 // A[j+16] store c2, A[j+96] store c1, (c2, c1) is a 2048 bit cipher//
 for(j=0; j<16; ++j)/*c2 (+3 lines)密文C的高1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/
@@ -222,7 +233,7 @@ temp[79] = 0x0b80229a17179d33;
 
 temp[80]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
 
-Comcp(pcp, temp);/*第一个参数保存在rdi ,第二个参数保存在rsi*/ /*c mod p = c2*R mod p + c1 mod p*/
+Comcq(pcp, temp);/*第一个参数保存在rdi ,第二个参数保存在rsi*/ /*c mod p = c2*R mod p + c1 mod p*/
 
 //q c2 r3r c1 r2r//
 
@@ -303,12 +314,49 @@ for(i=0; i<16; ++i)
 {
 	A[i+96]=qcq[i];   
 }
-						
+
+#define DEBUG_RSAREG_KERNEL
+#ifdef DEBUG_RSAREG_KERNEL
+    unsigned char* A_ptr=(unsigned char*)A;
+    printk(KERN_INFO "########################################################### \n");
+	printk(KERN_INFO "p_enc: AT@ File: %s, Function: %s, Line: %d\n", __FILE__, __func__, __LINE__);
+    for (i = 0; i < 128; i += 8) {
+        printk(KERN_INFO "%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X\n",
+               A_ptr[i], A_ptr[i+1], A_ptr[i+2], A_ptr[i+3],
+               A_ptr[i+4], A_ptr[i+5], A_ptr[i+6], A_ptr[i+7]);
+    }
+    printk(KERN_INFO "q_enc: AT@ File: %s, Function: %s, Line: %d\n", __FILE__, __func__, __LINE__);
+    for (i = 640; i <768 ; i += 8) {
+        printk(KERN_INFO "%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X\n",
+               A_ptr[i], A_ptr[i+1], A_ptr[i+2], A_ptr[i+3],
+               A_ptr[i+4], A_ptr[i+5], A_ptr[i+6], A_ptr[i+7]);
+    }		
+	printk(KERN_INFO "########################################################### \n");				
+#endif	//! #ifdef DEBUG_RSAREG_KERNEL
 			preempt_disable();
 			get_cpu();
 			local_irq_save(flags);
 
 			VIRSA(R, A);
+
+
+#ifdef DEBUG_RSAREG_KERNEL
+    A_ptr=(unsigned char*)A;
+    printk(KERN_INFO "########################## After vIRSA ################################# \n");
+	printk(KERN_INFO "p_enc: AT@ File: %s, Function: %s, Line: %d\n", __FILE__, __func__, __LINE__);
+    for (i = 0; i < 128; i += 8) {
+        printk(KERN_INFO "%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X\n",
+               A_ptr[i], A_ptr[i+1], A_ptr[i+2], A_ptr[i+3],
+               A_ptr[i+4], A_ptr[i+5], A_ptr[i+6], A_ptr[i+7]);
+    }
+    printk(KERN_INFO "q_no_enc: AT@ File: %s, Function: %s, Line: %d\n", __FILE__, __func__, __LINE__);
+    for (i = 640; i <768 ; i += 8) {
+        printk(KERN_INFO "%.2X %.2X %.2X %.2X %.2X %.2X %.2X %.2X\n",
+               A_ptr[i], A_ptr[i+1], A_ptr[i+2], A_ptr[i+3],
+               A_ptr[i+4], A_ptr[i+5], A_ptr[i+6], A_ptr[i+7]);
+    }		
+	printk(KERN_INFO "########################################################### \n");				
+#endif	//! #ifdef DEBUG_RSAREG_KERNEL
 ///*
 			for(i=0; i<32; ++i)
 			{

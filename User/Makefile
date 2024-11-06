@@ -11,7 +11,7 @@ CFLAGS = -I$(OPENSSL_DIR)/include -g -std=c99
 LDFLAGS = -L$(OPENSSL_DIR)/lib64 -lssl -lcrypto -lpthread -std=c99
 
 # 目标文件
-TARGET = LearnTest_program
+TARGET = user
 
 # 源文件
 SRCS = $(wildcard *.c) 

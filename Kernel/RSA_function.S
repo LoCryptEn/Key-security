@@ -3451,6 +3451,19 @@ mul_h_q_add_Rq:
 	vpxorq	B1xmm,	%xmm16,	B1xmm
 	vpxorq	B2xmm,	%xmm16,	B2xmm
 	vpxorq	B3xmm,	%xmm16,	B3xmm
+
+	#################################
+	/*#调试用：
+	vmovdqu64		A0xmm,		(%rsi)
+	vmovdqu64		A1xmm,		16(%rsi)
+	vmovdqu64		A2xmm,		32(%rsi)
+	vmovdqu64		A3xmm,		48(%rsi)
+	vmovdqu64		B0xmm,		64(%rsi)
+	vmovdqu64		B1xmm,		80(%rsi)
+	vmovdqu64		B2xmm,		96(%rsi)
+	vmovdqu64		B3xmm,		112(%rsi)
+*/
+
 	###############################
 
 /*
