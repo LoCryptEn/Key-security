@@ -58,10 +58,10 @@ int set_disp_mode(int fd,int option)
 }
 
 int getpasswd(char *passwd, int size){
-	int c;
+	//int c;
 	int n = 0;
 	set_disp_mode(STDIN_FILENO,0);
-	scanf("%s",passwd);
+	scanf("%s",passwd);	//SYX: this is unsafe
 	set_disp_mode(STDIN_FILENO,1);
 	return n;
 }
@@ -426,7 +426,7 @@ int sm2enc(int fd, unsigned long int cmd, char * message,  int messlen, unsigned
 	return writehex(out, testsm2.cipher, testsm2.len);
 }
 
-// hmac的所有中间态都要加密
+// hmac碌脛脣霉脫脨脰脨录盲脤卢露录脪陋录脫脙脺
 int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 {
 	GM_PAD	 testpad;
