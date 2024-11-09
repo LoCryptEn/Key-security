@@ -426,7 +426,7 @@ int sm2enc(int fd, unsigned long int cmd, char * message,  int messlen, unsigned
 	return writehex(out, testsm2.cipher, testsm2.len);
 }
 
-// hmacµÄËùÓÐÖÐ¼äÌ¬¶¼Òª¼ÓÃÜ
+// hmac inner hash output need to be encrypted
 int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 {
 	GM_PAD	 testpad;
@@ -977,8 +977,6 @@ err3:	//have opened the /dev/Nortm
  */
 int InitModule()
 {
-    int i=0;
-   
 	INIT_Para para;
 	char key[MASTER_KEY_SIZE], verify[MASTER_KEY_SIZE];
 	
