@@ -59,7 +59,7 @@ int set_disp_mode(int fd,int option)
 
 int getpasswd(char *passwd, int size){
 	//int c;
-	int n = 0;
+	int n = 0;	//SYX: what's for n
 	set_disp_mode(STDIN_FILENO,0);
 	scanf("%s",passwd);	//SYX: this is unsafe
 	set_disp_mode(STDIN_FILENO,1);
