@@ -15,7 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysfs.h>
 #include <linux/tty.h>
-#include <stdarg.h>
+//#include <stdarg.h>
 #include <linux/vt_kern.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
@@ -148,7 +148,7 @@ static long template_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 			int i;
 			unsigned long long A[500] __attribute__((aligned(64))) = { 0 };
 			unsigned long long R[100] __attribute__((aligned(64))) = { 0 };
-			copy_from_user(A, rsamessage->messages, 4000);
+			copy_from_user(A, rsamessage->messages, 4000);/*收到的用户态数据存到数组A中*/
 
 			unsigned long pcp[80]={0};
 unsigned long qcq[80]={0};
@@ -157,8 +157,8 @@ unsigned long temp[96]={0};
 //p c2 r3r c1 r2r//
 
 //encp//
-temp[0] = 0xfd9cafcc3c045c26;
-temp[1] = 0x32ef097e0535be96;
+temp[0] = 0xfd9cafcc3c045c26;/*(+65 lines) 计算CRT运算需要的Cp*R，*//*p(+16 lines 1024 bit)*/
+temp[1] = 0x32ef097e0535be96; /*p 每128bit分组 被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}异或*/
 temp[2] = 0x6c0497dcf7f56738;
 temp[3] = 0xde34a27ed307fe31;
 temp[4] = 0x96c3675f530df01f;
@@ -176,12 +176,12 @@ temp[15] = 0x692da5df8d2d0e48;
 
 int j;
 // A[j+16] store c2, A[j+96] store c1, (c2, c1) is a 2048 bit cipher//
-for(j=0; j<16; ++j)
+for(j=0; j<16; ++j)/*c2 (+3 lines)密文C的高1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/
 {
 	temp[j+16] = A[j+16];
 }
 
-temp[32]=0x428a64af4dffabd2;
+temp[32]=0x428a64af4dffabd2;/*RRRp (+16 lines)  R^3 mod p*/
 temp[33]=0xb65c26be8a7c509d;
 temp[34]=0x8a6b46b07c0e0764;
 temp[35]=0x8befb224c302cfe9;
@@ -198,12 +198,12 @@ temp[45]=0xda55f7498523cd86;
 temp[46]=0x1949c851098a4418;
 temp[47]=0x4f68b348391556ea;
 
-for(j=0; j<16; ++j)
+for(j=0; j<16; ++j)/*c1 (+3 lines)密文C的低1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/
 {
 	temp[j+48] = A[j+96];
 }
 
-temp[64] = 0xc697354528a7221d;
+temp[64] = 0xc697354528a7221d;/*RRp(+16 lines) R^2 mod p*/
 temp[65] = 0xd04318c74fc4e105;
 temp[66] = 0x507b74a8fe85db5c;
 temp[67] = 0x6b90489ff59276db;
@@ -220,14 +220,14 @@ temp[77] = 0xc29ffa0049f8a6b8;
 temp[78] = 0x7afa631a107c1457;
 temp[79] = 0x0b80229a17179d33;
 
-temp[80]=0x51b08be00dd0a787;
+temp[80]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
 
-Comcp(pcp, temp);
+Comcp(pcp, temp);/*第一个参数保存在rdi ,第二个参数保存在rsi*/ /*c mod p = c2*R mod p + c1 mod p*/
 
 //q c2 r3r c1 r2r//
 
 //encq//
-temp[0] = 0xd17dc21c42760588;
+temp[0] = 0xd17dc21c42760588; /*(+65 lines) 计算CRT运算需要的Cq*R，*/
 temp[1] = 0xcf47ab0e698ffa1d;
 temp[2] = 0x2cd2609ebe844674;
 temp[3] = 0x98883a6912756664;
@@ -245,13 +245,13 @@ temp[14] = 0x4d3c000642903cfa;
 temp[15] = 0x3c3b91e6f58ecdbd;
 
 
-for(j=0; j<16; ++j)
+for(j=0; j<16; ++j)/*c2 (+3 lines)密文C的高1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/
 {
 	temp[j+16] = A[j+16];
 }
 
 
-temp[32]=0x27967f6d786bcf0c;
+temp[32]=0x27967f6d786bcf0c;/*RRRq (+16 lines)  R^3 mod q*/
 temp[33]=0x4458856139010b8f;
 temp[34]=0x1339ec28cf7ee79b;
 temp[35]=0x73f627a4fba7c432;
@@ -268,12 +268,12 @@ temp[45]=0x5978c3e8707a43c6;
 temp[46]=0xef5261c4bc9b9a1b;
 temp[47]=0x3ebf598e777cc342;
 
-for(j=0; j<16; ++j)
+for(j=0; j<16; ++j)/*c1 (+3 lines)密文C的低1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/
 {
 	temp[j+48] = A[j+96];
 }
 
-temp[64] = 0x8a891b1a6db05376;
+temp[64] = 0x8a891b1a6db05376;/*RRq(+16 lines) R^2 mod q*/
 temp[65] = 0x591aa942354479ad;
 temp[66] = 0x3b3a0808af09ee93;
 temp[67] = 0xb80e2538b4a302cf;
@@ -290,11 +290,11 @@ temp[77] = 0x4f62dad58b04a953;
 temp[78] = 0x0e5b1db87764b57d;
 temp[79] = 0x3686fdcf1acfa5f4;
 
-temp[80]=0x30b922942b001ae7;
+temp[80]=0x30b922942b001ae7;/*q0 (+1 line) -q^{-1} mod 2^64*/
 
-Comcq(qcq, temp);
+Comcq(qcq, temp);/**/
 
-for(i=0; i<16; ++i)
+for(i=0; i<16; ++i)/*(+4 lines) c*R mod p 的计算结果Cp取代原来c2的位置*/
 {
 	A[i+16]=pcp[i];
 }

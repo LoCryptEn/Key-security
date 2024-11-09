@@ -13,17 +13,24 @@
 #include <termios.h>
 
 int type = 1;
+#define USER_HELPER
 
-u_int64_t rdtsc()
+#ifdef USER_HELPER
+#include"user_helper.h"
+/*C1,C2 :C=C_2 * R + C_1*/
+uint64_t C_1_from_extern[16];
+uint64_t C_2_from_extern[16];
+#endif
+uint64_t rdtsc()
 {
-        u_int32_t lo,hi;
+        uint32_t lo,hi;
 
 
         __asm__ __volatile__
         (
          "rdtsc":"=a"(lo),"=d"(hi)
         );
-        return (u_int64_t)hi<<32|lo;
+        return (uint64_t)hi<<32|lo;
 }
 
 void printchar(unsigned char * output, int len)
@@ -51,10 +58,10 @@ int FuncTestCompl1()
 {
 	//new added
 	clock_t  start,  finish;
-	u_int64_t startcc,  finishcc;
+	uint64_t startcc,  finishcc;
 
     double  duration;
-	u_int64_t  durationcc;
+	uint64_t  durationcc;
 	//
 	int i,fd;
 
@@ -76,8 +83,8 @@ int FuncTestCompl1()
 	*/
 
 
-message[0] = 0xfd9cafcc3c045c26;
-message[1] = 0x32ef097e0535be96;
+message[0] = 0xfd9cafcc3c045c26; /*p(+16 lines 1024 bit)*/
+message[1] = 0x32ef097e0535be96; /*p 每128bit分组 被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}异或*/
 message[2] = 0x6c0497dcf7f56738;
 message[3] = 0xde34a27ed307fe31;
 message[4] = 0x96c3675f530df01f;
@@ -99,9 +106,10 @@ for(i=0; i<16; ++i)
 
 
 // c2  Cp R
-message[16] = 0xb95d16811b5e5931;
-message[17] = 0xd1f4a5ac3c6586fd;
-message[18] = 0x82383eb7bf7e0def;
+#ifndef USER_HELPER
+message[16] = 0xb95d16811b5e5931;/*c2 (+16 lines)密文C的高1024比特*/
+message[17] = 0xd1f4a5ac3c6586fd; /*C1,C2 :C=C_2 * R + C_1*/
+message[18] = 0x82383eb7bf7e0def; /*R=2^1024*/
 message[19] = 0x5249b50e33dcb0de;
 message[20] = 0x673e3bc626cc414d;
 message[21] = 0x5c88258cc3b1096e;
@@ -115,13 +123,19 @@ message[28] = 0xe4c52867dfc3d675;
 message[29] = 0xddb4c52ec48b194d;
 message[30] = 0xd6c2e23edcad58f0;
 message[31] = 0x14265d15f006ce6a;
+#else
+for(i=16; i<32; ++i)
+{
+	message[i]=C_2_from_extern[i-16];
+}
+#endif//USER_HELPER
 for(i=16; i<32; ++i)
 {
 	para.messages[i] = message[i];
 }
 
 
-message[32] = 0xc697354528a7221d;
+message[32] = 0xc697354528a7221d;/*RRp(+16 lines)R^2 mod p*/
 message[33] = 0xd04318c74fc4e105;
 message[34] = 0x507b74a8fe85db5c;
 message[35] = 0x6b90489ff59276db;
@@ -143,8 +157,8 @@ for(i=32; i<48; ++i)
 }
 
 
-message[48] = 0x9f0aba313b3fb3f6;
-message[49] = 0xbd90634d2e8b8b58;
+message[48] = 0x9f0aba313b3fb3f6;/*dmp1(+16 lines)d mod p-1*/
+message[49] = 0xbd90634d2e8b8b58;/*dmp1和dmq1的每64比特分组被密钥0x0123456789ABCDEF异或*/
 message[50] = 0xccb3fc02a64331ac;
 message[51] = 0x4cf039f815cb543a;
 message[52] = 0x3e25befea59cfa75;
@@ -166,14 +180,14 @@ for(i=48; i<64; ++i)
 
 
 
-message[64]=0x51b08be00dd0a787;
+message[64]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
 para.messages[64] = message[64];
 
 
 
 //enc-q//
-message[80] = 0xd17dc21c42760588;
-message[81] = 0xcf47ab0e698ffa1d;
+message[80] = 0xd17dc21c42760588;/*q (+16 lines 1024 bit)*/
+message[81] = 0xcf47ab0e698ffa1d;/*q被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}AES加密*/
 message[82] = 0x2cd2609ebe844674;
 message[83] = 0x98883a6912756664;
 message[84] = 0xf0a6d3d16eeb4ccf;
@@ -193,9 +207,9 @@ for(i=80; i<96; ++i)
 	para.messages[i] = message[i];
 }
 //---//
-
-message[96] = 0xd3ebab218c09ed9e;
-message[97] = 0x2ec78f42950ac8b9;
+#ifndef USER_HELPER
+message[96] = 0xd3ebab218c09ed9e;/*c1 (+16 lines)密文C的低1024比特*/
+message[97] = 0x2ec78f42950ac8b9;/*C1,C2 :C=C_2 * R + C_1*/
 message[98] = 0xc45c81281c37fd33;
 message[99] = 0x1dfca9c5207ae0a1;
 message[100] = 0xc7cd3466eb7261a6;
@@ -210,12 +224,18 @@ message[108] = 0x3bb59161fcff0f3c;
 message[109] = 0xec55b647a6a10ff5;
 message[110] = 0x88db3111373e31de;
 message[111] = 0xd30b951fac6fb31d;
+#else
+for(i=96; i<112; ++i)
+{
+	message[i]=C_1_from_extern[i-96];
+}
+#endif//USER_HELPER
 for(i=96; i<112; ++i)
 {
 	para.messages[i] = message[i];
 }
 
-message[112] = 0x8a891b1a6db05376;
+message[112] = 0x8a891b1a6db05376;/*RRq(+16 lines)R^2 mod q*/
 message[113] = 0x591aa942354479ad;
 message[114] = 0x3b3a0808af09ee93;
 message[115] = 0xb80e2538b4a302cf;
@@ -236,8 +256,8 @@ for(i=112; i<128; ++i)
 	para.messages[i] = message[i];
 }
 
-message[128] = 0xebe146bf1611ebc6;
-message[129] = 0x378eee3e741c9b8b;
+message[128] = 0xebe146bf1611ebc6;/*dmq1(+16 lines)d mod q-1*/
+message[129] = 0x378eee3e741c9b8b;/*dmp1和dmq1的每64比特分组被密钥0x0123456789ABCDEF异或*/
 message[130] = 0xee384d1b92d5bd46;
 message[131] = 0x5e3355dd86b8ca40;
 message[132] = 0x45ebc0d86b81980a;
@@ -258,11 +278,11 @@ for(i=128; i<144; ++i)
 }
 
 
-message[144]=0x30b922942b001ae7;
+message[144]=0x30b922942b001ae7;/*q0 (+1 line) -q^{-1} mod 2^64*/
 para.messages[144] = message[144];
 
 
-message[160] = 0xa7cc614d5197c537;
+message[160] = 0xa7cc614d5197c537;/*iqmp(+16 lines) q-1 mod p*/
 message[161] = 0xb6f1be85e23c279e;
 message[162] = 0x14cfa343bd937442;
 message[163] = 0x4fa2515a87e75add;
@@ -299,7 +319,7 @@ for(i=160; i<176; ++i)
 	finishcc = rdtsc();
 
     duration = (double) (finish - start)/CLOCKS_PER_SEC;
-	durationcc = (u_int64_t)(finishcc - startcc);
+	durationcc = (uint64_t)(finishcc - startcc);
 	//duration = duration/1000;
 	//durationcc = durationcc/1000;
 
@@ -308,7 +328,7 @@ for(i=160; i<176; ++i)
 	//printf("The duration cycles is :  %llu cycles \n", durationcc);	
 	//
 ///*
-	for(i=0; i<32; ++i)
+	for(i=0; i<32; ++i)/*(+5 lines)收到解密结果，即明文*/
 	{
 		Res[i] = para.messages[i];
 		printf ("Res[%d]:        %llx\n",i,Res[i]);
@@ -412,6 +432,7 @@ int main(int argc, char **argv){
 	{
 
 		printf("RSA operation in CPU-Bound\n");
+		user_helper();
 		FuncTestCompl1();
 
 		return 0;
