@@ -13,7 +13,25 @@ int user_helper(){
     char* n="7a66ee12a844f4220cb0d502fd0f377a253910a5011e857e05358e279ab0e9be28b311ade9ae71c1b599d90d6b189ae44d7d9ad55b3f72632e27798d1bba482ec0a368d4c4a3120f9bd8d507f41090af8efe98e9f4f6032c569f404fa0c432698206a54a1b52ad3849d15f0b25e1035f8a784cfc3f750d8c8d0eb6f07827ff00b2c91451e2c4afd78fc32caec1f27d48394261489f8edb0859d61f0726a2ee0f349c8e663e373bcb5ba60f3bc63d1731ea9eb6b703e815bfecc14023d84a708856094ede6958568ad440bf66a2da6c171b4d21db2b4f6c4ddf00152c0f3c7dce416bdfe7b9fcf674a71d99d1fd198cb2775541de2f47c274afa6a3f868f97831";
     char* m="234182782666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666609a1";
     //char* m="2774182782666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666609a1";
-    rsa_used_for_test_enc( e,n,m,&e_len,&n_len,&m_len,c_1,c_2,c_1_len,c_2_len,c,ciphertext_len);
+    char m_user_input[1024];
+    printf("以下是 受寄存器保护的RSA-2048解密DEMO:\n");
+    printf("##############################################\n");
+    printf("公钥(e,n)=\n(%s,%s)\n",e,n);
+    printf("##############################################\n");
+    printf("请输入明文m(小于n的16进制数),如略过(则为默认值 \"%s\")请输入回车键\n",  "123456789");
+    printf("明文m: ");
+    fgets(m_user_input, sizeof(m_user_input), stdin);
+    // Remove newline character if present
+    size_t len = strlen(m_user_input);
+    if (len > 0 && m_user_input[len - 1] == '\n') {
+        m_user_input[len - 1] = '\0';
+    }
+    if (len== 1) {
+        strcpy(m_user_input, "123456789");
+    } 
+
+    printf("使用明文: %s\n", m_user_input);
+    rsa_used_for_test_enc( e,n,m_user_input,&e_len,&n_len,&m_len,c_1,c_2,c_1_len,c_2_len,c,ciphertext_len);
     memcpy((void*)C_1_from_extern,(void*)c_1,16*64);
     memcpy((void*)C_2_from_extern,(void*)c_2,16*64);
     free(c);

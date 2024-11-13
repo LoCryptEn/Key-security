@@ -307,6 +307,7 @@ void BN_2_ulong(BIGNUM *a,  unsigned long b[] ){
 //ret:   
 #define DEBUG_rsa_used_for_test_enc
 #undef TEST_rsa_used_for_test_enc
+#undef DEBUG_rsa_used_for_test_enc
 int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_n,const char* parameter_m \
     ,size_t parameter_e_len,size_t parameter_n_len,size_t parameter_m_len, \
     uint64_t* c_1,uint64_t* c_2,size_t c_1_len, size_t c_2_len, uint64_t* ciphertext,size_t ciphertext_len)
@@ -393,8 +394,10 @@ int rsa_used_for_test_enc(const char* parameter_e,const char*parameter_n,const c
 #endif
     
 
-
-
+    char *hex_str = BN_bn2hex(c);
+    printf("m经(e,n)加密后密文c为:%s\n", hex_str);
+    //BN_print_fp(stdout,c);
+    printf("\n");
     BN2048_2_ulong(c, ciphertext);
     {
         int j=0;
