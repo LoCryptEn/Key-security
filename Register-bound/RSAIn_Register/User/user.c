@@ -324,15 +324,43 @@ for(i=160; i<176; ++i)
 	//durationcc = durationcc/1000;
 
 
+#define DISPLAY_DURATION_TIME
+#undef DISPLAY_DURATION_TIME
+#ifdef DISPLAY_DURATION_TIME
     printf("The duration time is :  %.16f  seconds\n", duration);
 	//printf("The duration cycles is :  %llu cycles \n", durationcc);	
 	//
+#endif
 ///*
+#define DISPLAY_RAW_RESULT
+#undef DISPLAY_RAW_RESULT
+#ifdef DISPLAY_RAW_RESULT
 	for(i=0; i<32; ++i)/*(+5 lines)收到解密结果，即明文*/
 	{
 		Res[i] = para.messages[i];
 		printf ("Res[%d]:        %llx\n",i,Res[i]);
 	}
+#endif
+    char* res_string[8192];
+	for(i=31; i>=0; --i)/*(+5 lines)收到解密结果，即明文*/
+	{
+		Res[i] = para.messages[i];
+		if (i == 31) {
+            sprintf(res_string,"%llx", Res[i]);
+        } else {
+            sprintf(res_string,"%s%llx", res_string, Res[i]);
+        }
+	}
+	{
+		BIGNUM *bn = BN_new();
+		BN_hex2bn(&bn, res_string);
+	    char *hex_str = BN_bn2hex(bn);
+		printf("密文c在寄存器中计算RSA-2048解密后的消息m为:%s\n", hex_str);
+        //BN_print_fp(stdout,c);
+        printf("\n");
+	}
+
+
 //*/
 	close(fd);
 
@@ -417,27 +445,47 @@ int InitModule()
 	return 1;
 }
 
+void display_help() {
+    printf("Usage: %s [options]\n", "user");
+    printf("Options:\n");
+    printf("  -i, --init       导入 AES/SM4 128-bits KEY \n");
+    printf("  -e, --exec       开始执行受寄存器保护的RSA-2048解密DEMO \n");
+}
+
 int main(int argc, char **argv){
 	type = atoi(argv[4]);
 	int i,res,t;
 
 
-	if(type == 1)
+    if (argc == 1 || (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0))) 
 	{
-		printf("Put the AES/SM4 128 bits key into debug registers dr0 && dr1\n");
-		InitModule();
-		return 0;
-	}
-	if(type == 2)
+        display_help();
+        return 0;
+    }
+
+	for (int i = 1; i < argc; i++) 
 	{
+        if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--init") == 0) {
+			printf("Put the AES/SM4 128 bits key into debug registers dr0 && dr1\n");
+			InitModule();
+			return 0;
+        } else if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--exec") == 0) {
+			user_helper();
+            printf("#############################################################\n");
+			printf("#############################################################\n");
+			printf("RSA operation in CPU-Bound 开始执行受寄存器保护的RSA-2048解密:\n");
+			printf("\n");
 
-		printf("RSA operation in CPU-Bound\n");
-		user_helper();
-		FuncTestCompl1();
 
-		return 0;
-	}
-	
+			FuncTestCompl1();
+            return 0;
+        } else {
+            printf("Error: Unknown option '%s'. Use -h for help.\n", argv[i]);
+            return 1;
+        }
+    }
+
+
 	return 0;
 }
 
