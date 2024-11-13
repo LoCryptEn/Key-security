@@ -140,7 +140,7 @@ int SelfTestCompl()
 		printf("SM2_ENC fail\n");
 
 	// SYX : currently we don't use SM2_ENC
-	
+
 	// while(ioctl(fd,SM2_SAFE_DEC,&testsm2) == -1);
 	// printf("SM2_SAFE_DEC success\n");
 	// SM4DecryptWithMode(testsm2.plain, testsm2.len, testsm2.plain, testsm2.len, NULL, ECB, outtemp);
@@ -294,6 +294,11 @@ int sm2verify(int fd, unsigned long int cmd, char * message,  int messlen, char 
 		printf("sm2 signature error: not a signature\n");
 		return -1;
 	}
+	if(messlen > SM2_MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
+		return -1;
+	}
 	
 	// SYX: DBG
 	// printf("%d : %s\n", messlen, message );
@@ -328,6 +333,11 @@ int sm2sign(int fd, unsigned long int cmd, char * message,  int messlen, char * 
 	if(keylen < 3*SM2_KEY_LEN)
 	{
 		printf("sm2 key error: not a sm2 private key\n");
+		return -1;
+	}
+	if(messlen > SM2_MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
 		return -1;
 	}
 	
@@ -405,6 +415,12 @@ int sm2enc(int fd, unsigned long int cmd, char * message,  int messlen, unsigned
 		printf("sm2 key error: not a sm2 public key\n");
 		return -1;
 	}
+	if(messlen > SM2_MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
+		return -1;
+	}
+
 	memcpy(testsm2.pin,pin,PIN_LEN);
 	memcpy(testsm2.x, key, SM2_KEY_LEN);
 	memcpy(testsm2.y, key + SM2_KEY_LEN, SM2_KEY_LEN);
@@ -692,6 +708,11 @@ int sm4opt(int fd, int mode, char * message,  int messlen, unsigned char * key, 
 		printf("sm4 key error: not a sm4 key\n");
 		return -1;
 	}
+	if(messlen > MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", MAX_PLAIN_LEN);
+		return -1;
+	}
 
 	memcpy(testsm4.pin,pin,PIN_LEN);
 	testsm4.mode = 1; //ECB
@@ -853,12 +874,6 @@ void *testthread(void *para1){
 		signlen = readhex(signature, buff, signlen);
 
 		messlen = read(infd, message, sizeof(message));
-		if(messlen > SM2_MAX_PLAIN_LEN)
-		{
-			printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-			ret = -1;
-			goto err1;
-		}
 
 		ret = sm2verify(fd, SM2_VERIFY, message, messlen, username, signature, signlen, key, keylen);
 		if(ret == -1)
@@ -886,12 +901,7 @@ void *testthread(void *para1){
 		if(type == 4 || type == 5) // sign
 		{
 			messlen = read(infd, message, sizeof(message));
-			if(messlen > SM2_MAX_PLAIN_LEN)
-			{
-				printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-				ret = -1;
-				goto err1;
-			}
+			
 			if(type == 4)
 				outlen = sm2sign(fd, SM2_SIGN, message, messlen, username, key, keylen, out);
 			else
@@ -917,12 +927,6 @@ void *testthread(void *para1){
 			}
 			else{
 				messlen = read(infd, message, sizeof(message));
-				if(messlen > SM2_MAX_PLAIN_LEN)
-				{
-					printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-					ret = -1;
-					goto err1;
-				}
 				outlen = sm2enc(fd, SM2_ENC, message, messlen, key, keylen, out);
 			}
 		}
