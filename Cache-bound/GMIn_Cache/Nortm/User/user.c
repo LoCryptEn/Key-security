@@ -139,15 +139,15 @@ int SelfTestCompl()
 	if(ioctl(fd,SM2_ENC,&testsm2)==-1)
 		printf("SM2_ENC fail\n");
 
-	while(ioctl(fd,SM2_SAFE_DEC,&testsm2) == -1);
-	printf("SM2_SAFE_DEC success\n");
-	// if(ioctl(fd,SM2_SAFE_DEC,&testsm2) == -1)
-	// 	printf("SM2_SAFE_DEC fail\n");
-	SM4DecryptWithMode(testsm2.plain, testsm2.len, testsm2.plain, testsm2.len, NULL, ECB, outtemp);
-	if(memcmp(testsm2.plain,message,32)==0)
-		printf("SM2 Normal Enc, Safe Dec OK\n");
-	else
-		printf("SM2 Normal Enc, Safe Dec fail\n");
+	// SYX : currently we don't use SM2_ENC
+	
+	// while(ioctl(fd,SM2_SAFE_DEC,&testsm2) == -1);
+	// printf("SM2_SAFE_DEC success\n");
+	// SM4DecryptWithMode(testsm2.plain, testsm2.len, testsm2.plain, testsm2.len, NULL, ECB, outtemp);
+	// if(memcmp(testsm2.plain,message,32)==0)
+	// 	printf("SM2 Normal Enc, Safe Dec OK\n");
+	// else
+	// 	printf("SM2 Normal Enc, Safe Dec fail\n");
 
 	testsm3.plainLen = 0;
 	memcpy(testsm3.pin,pin,PIN_LEN);
@@ -311,7 +311,7 @@ int sm2verify(int fd, unsigned long int cmd, char * message,  int messlen, char 
 
 	do{
 		LOOP --; 
-		ret = ioctl(fd, SM2_VERIFY, &testsm2sign);
+		ret = ioctl(fd, cmd, &testsm2sign);
 		if(ret != -1) {
 			break;
 		}
@@ -682,11 +682,12 @@ int sm3hash(int fd, int mode, int infd, char * out)
 	return writehex(out, testsm3.digest, SM3_DIGEST_LEN);
 }
 
+//SYX : now we only use ECB
 int sm4opt(int fd, int mode, char * message,  int messlen, unsigned char * key, int keylen, char * out)
 {
 	SM4_Para testsm4;
 	int ret = -1;
-	if(keylen != SM4_KEY_LEN)
+	if(keylen < SM4_KEY_LEN)
 	{
 		printf("sm4 key error: not a sm4 key\n");
 		return -1;
@@ -747,7 +748,7 @@ void *testthread(void *para1){
 	Gen_Key_Para sm2genkey;
 
 
-	size_t ret = 0, cur=0;
+	size_t ret = 0;
 	int openmod;
 	int type = ((Main_Para *)para1)->type;
 	char * infile = ((Main_Para *)para1)->infile;
@@ -855,7 +856,8 @@ void *testthread(void *para1){
 		if(messlen > SM2_MAX_PLAIN_LEN)
 		{
 			printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-			ret = 0;
+			ret = -1;
+			goto err1;
 		}
 
 		ret = sm2verify(fd, SM2_VERIFY, message, messlen, username, signature, signlen, key, keylen);
@@ -887,12 +889,16 @@ void *testthread(void *para1){
 			if(messlen > SM2_MAX_PLAIN_LEN)
 			{
 				printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-				ret = 0;
+				ret = -1;
+				goto err1;
 			}
 			if(type == 4)
 				outlen = sm2sign(fd, SM2_SIGN, message, messlen, username, key, keylen, out);
 			else
+			{
+				printf("Signing with TSX protected, please with for a while\n");
 				outlen = sm2sign(fd, SM2_SAFE_SIGN, message, messlen, username, key, keylen, out);
+			}
 		}
 
 		if(type == 6 || type == 7 || type == 8)	//SM2 DEC / ENC
@@ -904,14 +910,18 @@ void *testthread(void *para1){
 				if(type == 6)
 					outlen = sm2dec(fd, SM2_DEC, message, messlen, key, keylen, out, outtemp);
 				else
+				{
+					printf("Decrypting with TSX protected, please with for a while\n");
 					outlen = sm2dec(fd, SM2_SAFE_DEC, message, messlen, key, keylen, out, outtemp);
+				}
 			}
 			else{
 				messlen = read(infd, message, sizeof(message));
 				if(messlen > SM2_MAX_PLAIN_LEN)
 				{
 					printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-					ret = 0;
+					ret = -1;
+					goto err1;
 				}
 				outlen = sm2enc(fd, SM2_ENC, message, messlen, key, keylen, out);
 			}
@@ -938,6 +948,7 @@ void *testthread(void *para1){
 			write(outfd, out, outlen);
 			ret = 1;
 			// printf("%s %d\n", out, openmod&O_TRUNC);
+			printf("Get the result in the file %s\n", outfile);
 		}
 	}
 	//normal exit
@@ -947,9 +958,11 @@ void *testthread(void *para1){
 			perror(infile);
 		}
 	}
-	
 	if (close(outfd)) {
 		perror(outfile);
+	}
+	if (close(fd)) {
+		perror("close(/dev/Nortm)");
 	}
 	return (void *)ret;
 
@@ -1118,13 +1131,13 @@ void showhelp(void)
 	printf("./user: type [-l] Loopnum(0:loop until success default) [-d] debug(0:no debug default, 1:debug)\n");
 	printf("type: \n");
 	printf("\t--0 generage the signature of the module\n");
-	printf("\t--1 self test and init the module (setting the master key and the PIN)\n");
+	printf("\t--1 Init the module (setting the Masterkey and the PIN)\n");
 	printf("\t--2 SM2 KeyGen \t\t --3 Safe SM2 KeyGen\n "); 
 	printf("\t--4 SM2 Sign \t\t --5 Safe SM2 Sign\n ");
 	printf("\t--6 SM2 Dec \t\t --7 Safe SM2 Dec\n");
 	printf("\t--8 SM2 Enc \n");
 	printf("\t--9 SM2 Verify\n");
-	printf("\t--10 SM3 Digest \t\t --11 Safe SM3 Digest\n");
+	printf("\t--10 SM3 Digest \t --11 Safe SM3 Digest\n");
 	printf("\t--12 Safe SM4 Enc\n");
 	printf("\t--13 Safe SM4 Dec\n");
 	printf("\t--14 Safe HMAC\n");
@@ -1134,7 +1147,7 @@ void showhelp(void)
 //SYX : no need for thread? 
 //SYX : SM2_SAFE_DEC too slow
 int main(int argc, char **argv){
-	int i,res,t, cur=LOOP;
+	int i,res, cur=LOOP;
 	if(argc < 2)
 	{
 		showhelp();
@@ -1192,10 +1205,12 @@ int main(int argc, char **argv){
 	}
 	if(type ==1)
 	{
-		printf("SelfTest the module\n");
+		//printf("SelfTest the module\n");
 		SelfTest();
-		printf("SelfTest OK\n");
+		// printf("SelfTest OK\n");
+		printf("Init the module\n");
 		InitModule();
+		printf("Init OK\n");
 		if(debugFlag)
 			SelfTestCompl();
 		return 0;
@@ -1211,9 +1226,9 @@ int main(int argc, char **argv){
 		return -1;
 
 	gettimeofday(&end,NULL);
-	
-	printf("LOOP \t %d \t type \t %d \t\n", cur - LOOP, type);
-	printf("type \t %s \t speed: \t %f\n", typechar[type-2], (float)1000000/(end.tv_usec-beg.tv_usec+1000000*(end.tv_sec-beg.tv_sec)));		
+
+	if(debugFlag)
+		printf("LOOP: %d \t type: %s \t speed: %f\n", cur - LOOP, typechar[type-2], (float)1000000/(end.tv_usec-beg.tv_usec+1000000*(end.tv_sec-beg.tv_sec)));		
 	return 0;
 }
 
