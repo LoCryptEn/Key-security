@@ -122,7 +122,6 @@ int FuncTestCompl1()
     ECDSA_SIG *ecdsa_sig = ECDSA_SIG_new();
 
     // AES-NI ENC Pk
-    printf("> Loading Enc(d)\n");
     const char pk_str[] = "d471b173df7b29aa0c5b667074a2b37a7d5bdb0f8a4c9f141534cff30cba0ea9";
     //
     BIGNUM *prikenc = BN_new();
@@ -134,7 +133,6 @@ int FuncTestCompl1()
     group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     p_pubkey = EC_POINT_new(group);
     // EC_POINT_mul(group, p_pubkey, p_privkey, NULL, NULL, NULL);
-    printf("> Loading Public Key\n");
     unsigned char bufQ[33] = {0x3, 0x75, 0xf7, 0x16, 0xed, 0x6, 0x49, 0x35, 0x9b, 0x6, 0xf5, 0xfb, 0x7a, 0x25, 0xdb, 0x62, 0x6c, 0x89, 0x10, 0x7f, 0xc, 0x9, 0x12, 0x86, 0x4b, 0xec, 0x4e, 0x30, 0x23, 0xb7, 0xcd, 0xaf, 0x39};
     EC_POINT_oct2point(group, p_pubkey, bufQ, buf_len, ctx);
 
@@ -142,22 +140,14 @@ int FuncTestCompl1()
     // EC_KEY_set_private_key(ec_key_temp, p_privkey);
     EC_KEY_set_private_key(ec_key_temp, NULL);
     EC_KEY_set_public_key(ec_key_temp, p_pubkey);
-    //-----------------------------------------------------------------------------------------//
-
     //-------------------------INIT------------calculate public parameters K1*G----------------------//
-    // const char K1[]="1234567890ABCDEFFEDCBA09876543211234567890ABCDEFFEDCBA0987654321";
-    // BIGNUM *p_k1 = BN_new();
-    // BN_hex2bn(&p_k1, K1);
 
     EC_POINT *p_pubk1 = EC_POINT_new(group);
-    // EC_POINT_mul(group, p_pubk1, p_k1, NULL, NULL, NULL);
-    printf("> Loading k1*G\n");
     unsigned char bufk1G[33] = {0x3, 0x93, 0x98, 0x69, 0xc3, 0xe7, 0x6b, 0xbb, 0x89, 0xd6, 0xb5, 0xca, 0x2b, 0x6c, 0x4b, 0x65, 0x3d, 0xa8, 0xec, 0x95, 0xd2, 0xe2, 0x81, 0xe5, 0xbd, 0x18, 0xa6, 0x1, 0xc1, 0x10, 0xec, 0x6f, 0xf9};
 
     EC_POINT_oct2point(group, p_pubk1, bufk1G, buf_len, ctx);
 
     // AES-NI ENC K1
-    printf("> Loading Enc(K1)\n");
     const char K1Enc[] = "8c24f784a6285db7487b9a4f1df3c8db8c24f784a6285db7487b9a4f1df3c8db";
     //
     BIGNUM *p_kenc = BN_new();
@@ -239,6 +229,7 @@ int FuncTestCompl1()
         BN_nnmod(r, X, order, ctx); // get r
     } while (BN_is_zero(r));
 
+    printf("> ECDSA signing in CPU-Bound\n");
     BN_copy(r_copy, r);
 
     BN_2_ulong(r, RA);
@@ -374,11 +365,11 @@ int FuncTestCompl1()
 
     if (ECDSA_do_verify(md_value, md_len, ecdsa_sig, ec_key_temp))
     {
-        printf("> verify success\n");
+        printf("> Successfully verified by OpenSSL API\n");
     }
 
-    printf("> The duration time is :  %.16f  seconds\n", duration);
-    printf("> The duration cycles is :  %lu cycles \n", durationcc);
+    // printf("> The duration time is :  %.16f  seconds\n", duration);
+    // printf("> The duration cycles is :  %lu cycles \n", durationcc);
 
     EC_KEY_free(ec_key_temp);
 
@@ -387,7 +378,7 @@ int FuncTestCompl1()
         printf("Sign Error\n");
     }
 
-    printf("> Sign Success\n");
+    printf("> Secure Sign Success\n");
 
     close(fd);
 
@@ -460,19 +451,22 @@ int main(int argc, char **argv)
     int i, res, t;
 
     if (type == 1)
-    {
+    {  
+        printf("* Stage 1\n");
         printf("* Put the AES/SM4 128 bits key into debug registers dr0 && dr1\n");
+        printf("--------------------------------------------------------------\n");
         InitModule();
+        printf("--------------------------------------------------------------\n");
         return 0;
     }
 
     if (type == 2)
     {
-
-        printf("* ECDSA signing in CPU-Bound\n");
-
+        printf("* Stage 2\n");
+        printf("* Do secure ECDSA signing\n");
+        printf("--------------------------------------------------------------\n");
         FuncTestCompl1();
-
+        printf("--------------------------------------------------------------\n");
         return 0;
     }
 
