@@ -154,7 +154,7 @@ int InitModule()
 }
 
 int ecdsa_normal_keygen(){
-	//生成�?私钥�?
+	//ç”Ÿæˆå…?ç§é’¥å¯?
     if (ecc_make_key(un_pubkey, un_prikey)){
 		printf("\n############## private key ###############\n");
 		printhex(un_prikey,32);
@@ -169,15 +169,15 @@ int ecdsa_normal_keygen(){
 }
 
 int ecdsa_safe_keygen(){
-	//生成�?私钥�?
+	//ç”Ÿæˆå…?ç§é’¥å¯?
     if (ecc_make_key(pubkey, prikey)){
 		unsigned char outtemp[16];	
 		memset(key,0,MASTER_KEY_SIZE);
 		memcpy(key,"12345678",8);
 		unsigned char salt[8] = {0x1,0x2,0x3,0x3,0x5,0x6,0x7,0x8};
-		//outtemp为aes秘钥，用于加密ecdsa私钥
+		//outtempä¸ºaesç§˜é’¥ï¼Œç”¨äºŽåŠ å¯†ecdsaç§é’¥
 		pbkdf2_sha256(key, MASTER_KEY_SIZE, salt, 8, 1000, outtemp, 16);
-		//用outtemp加密prikey，得到prikey_cipher
+		//ç”¨outtempåŠ å¯†prikeyï¼Œå¾—åˆ°prikey_cipher
 		AESEncryptWithMode(prikey, 32, prikey_cipher, 32, NULL, ECB, outtemp);
 		memset(prikey, 0, 32);
 		printf("\n############## private key (encrypted) ###############\n");
@@ -273,7 +273,7 @@ int main(int argc, char **argv){
 					gettimeofday(&beg,NULL);
 					memcpy(ecdsa_para.d,un_prikey,32);
 
-					printf("Input a message end with '\\n', max len is %d: ", MAX_PLAIN_LEN-1);
+					printf("Input a message, max len is %d: ", MAX_PLAIN_LEN-1);
 					ecdsa_para.msg_len = safereadstring(ecdsa_para.message, MAX_PLAIN_LEN-1);
 					printf("Message is :%s\n", ecdsa_para.message);
 					// memcpy(ecdsa_para.message,message, 14);
@@ -313,7 +313,7 @@ int main(int argc, char **argv){
 					gettimeofday(&beg,NULL);
 					memcpy(ecdsa_para.d,prikey_cipher,32);
 
-					printf("Input a message end with '\\n', max len is %d: ", MAX_PLAIN_LEN-1);
+					printf("Input a message, max len is %d: ", MAX_PLAIN_LEN-1);
 					ecdsa_para.msg_len = safereadstring(ecdsa_para.message, MAX_PLAIN_LEN-1);
 					printf("Message is :%s\n", ecdsa_para.message);
 					// memcpy(ecdsa_para.message,message, 14);
