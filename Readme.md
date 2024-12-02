@@ -17,5 +17,3 @@
 	- RSAIn_Register/ 基于寄存器的RSA解密算法；编译，运行以及软硬件环境请参考RSAIn_Register/目录下的Readme文档。
 	- ECCIn_Register/ 基于寄存器的ECDSA签名算法；编译，运行以及软硬件环境请参考ECCIn_Register/目录下的Readme文档。
 
-
-**注：代码仍在开发和修改中，后续会支持更多公钥算法，如XMSS等**
