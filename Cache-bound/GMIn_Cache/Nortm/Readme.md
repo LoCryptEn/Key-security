@@ -33,10 +33,10 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 	- SM2密钥初始化：./user [2|3] -o sm2.key
 	- SM2签名：./user [4|5] -i file.msg -u yourname -k sm2.key -o sm2.sig
 	- SM2验签：./user 9 -i file.msg -u yourname -k sm2.key -o sm2.sig
-	- SM3摘要：./user [10|11] -i file.msg -o sm3.deg
+	- SM3摘要：./user 10 -i file.msg -o sm3.deg
     - SM4加密：./user 12 -i file.msg -o sm4.enc -k sm4.key
     - SM4解密：./user 13 -i sm4.enc -o sm4.dec -k sm4.key
-    - HMAC-SM3：./user 14 -i file.msg -o sm3.hmac -k hmac.key
+    - SM3-HMAC：./user 14 -i file.msg -o sm3.hmac -k hmac.key
  			
 
 上述命令在Ubuntu16.04环境中能运行成功
@@ -47,4 +47,4 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 
 注3：密钥与密文输出以16进制字符串的形式输出，解密的消息以字符形式输出
 
-注4：对称密钥如sm4.key与hmac.key只需提供足够长的字符串即可，因为其先使用CPU的SM4密钥解密一次才使用，实际密钥会得到保密
+注4：对称密钥如sm4.key与hmac.key只需提供足够长的随机字符串即可，因为其先使用CPU的SM4密钥解密一次才使用，实际密钥会得到保密
