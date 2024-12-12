@@ -7,6 +7,8 @@
 #include "sm3hash.h"
 #include "Mpi.h"
 #include <malloc.h>
+void printinfohex(char *info, unsigned char * output, int len);
+
 unsigned char g_pInv2[DCS_ECC_KEY_LENGTH] = {0x7f ,0xff ,0xff ,0xff ,0x7f ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0x80 ,0x00 ,0x00 ,0x00 ,0x80 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00};
 
 
@@ -1526,6 +1528,7 @@ int PubHashUserId(CECCPublicKey *t, unsigned char *pbOut, unsigned char *pUserNa
 	unsigned char bufPnt[MPI_LENGTH*4];
 	if (!pUserName)
 		iLenOfName = 0;
+	// printinfohex("user", pUserName, iLenOfName);
 
 	ENTL[0] = (unsigned char)(iLenOfName >> 5);
 	ENTL[1] = (unsigned char)(iLenOfName << 3);
@@ -1534,16 +1537,22 @@ int PubHashUserId(CECCPublicKey *t, unsigned char *pbOut, unsigned char *pUserNa
 		HashPending(&hashState, pUserName, iLenOfName);
 	
 	CMpiExport(&g_paramA,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("A", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&g_paramB,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("B", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&g_PntGx,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Gx", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&g_PntGy,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Gy", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&(t->m_pntPx),bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Px", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&(t->m_pntPy),bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Py", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 
 	HashFinal(pbOut,&hashState);
@@ -1787,11 +1796,15 @@ int VerifyMessage(CECCPublicKey *pk, unsigned char *pMsg, int iLenOfMsg, unsigne
 	unsigned char digest[HASH_256];
 
 	PubHashUserId(pk,hashResult, pUserName, iLenOfUserName);
+	// printinfohex("ID", hashResult, HASH_256);
 
 	// the 2nd hash
 	HashInit(&hashState, hashResult, HASH_256);
 	HashPending(&hashState, pMsg, iLenOfMsg);
 	HashFinal(digest, &hashState);
+
+	// printinfohex("msgdeg", digest, HASH_256);
+
 	return Verify(pk, digest, HASH_256, pSig, iLenOfSig);
 }
 

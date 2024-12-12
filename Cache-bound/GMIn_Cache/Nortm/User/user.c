@@ -31,7 +31,7 @@ typedef struct _Main_Para
 	int type;
 }Main_Para;
 
-char typechar[13][15] = {"SM2KeyGen","SM2SafeKeyGen", "Sign","SafeSign","SM2Dec","SM2SafeDec","SM2Enc","SM2Verify","SM3Digest","SM3IUF","SafeSM3IUF","SafeSM4","SafeHMAC"};
+char typechar[13][15] = {"SM2KeyGen","SM2SafeKeyGen", "Sign","SafeSign","SM2Dec","SM2SafeDec","SM2Enc","SM2Verify","SM3Digest","SafeSM3Digest","SafeSM4Enc","SafeSM4Dec","SafeHMAC"};
 
 //gcc -g -o user user.c EllipticCurve.c Mpi.c sm3hash.c -lpthread
 
@@ -75,7 +75,7 @@ void getpin()
 		printf("Please input PIN[%d max]:\n",PIN_LEN);
 		getpasswd(pin,PIN_LEN);
 
-		printf("Please input PIN KEY again[%d max]:\n",PIN_LEN);
+		printf("Please input PIN again[%d max]:\n",PIN_LEN);
 		getpasswd(pinVerify,PIN_LEN);
 		if(strncmp(pin, pinVerify, PIN_LEN)==0){
 			break;
@@ -149,32 +149,6 @@ int SelfTestCompl()
 	// else
 	// 	printf("SM2 Normal Enc, Safe Dec fail\n");
 
-	testsm3.plainLen = 0;
-	memcpy(testsm3.pin,pin,PIN_LEN);
-	if(ioctl(fd,SM3_INIT,&testsm3) == -1)
-		printf("Normal SM3 init fail\n");
-	testsm3.plainLen = 32;
-	memcpy(testsm3.plain,message,testsm3.plainLen);
-	if(ioctl(fd,SM3_UPDATE,&testsm3) == -1)
-		printf("Normal SM3 update fail\n");	
-	if(ioctl(fd,SM3_FINAL,&testsm3) == -1)
-		printf("Normal SM3 final fail\n");	
-	testsafesm3.plainLen = 0;
-	memcpy(testsafesm3.pin,pin,PIN_LEN);
-	if(ioctl(fd,SM3_INIT,&testsafesm3) == -1)
-		printf("Normal SM3 init fail\n");
-	testsafesm3.plainLen = 32;
-	memcpy(testsafesm3.plain,message,testsafesm3.plainLen);
-	if(ioctl(fd,SM3_UPDATE,&testsafesm3) == -1)
-		printf("Normal SM3 update fail\n");	
-	if(ioctl(fd,SM3_FINAL,&testsafesm3) == -1)
-		printf("Normal SM3 final fail\n");	
-
-	if(memcmp(testsafesm3.digest,testsm3.digest,SM3_DIGEST_LEN)==0)
-		printf("SM3 Normal Digest, Safe Digest OK\n");
-	else
-		printf("SM3 Normal Digest, Safe Digest fail\n");
-
 	testsm4.len = 32;
 	testsm4.mode = 1; //ECB
 	testsm4.flag = 1; //Enc
@@ -218,6 +192,11 @@ void printhex(unsigned char * output, int len)
     printf("\n");
 }
 
+void printinfohex(char *info, unsigned char * output, int len){
+	printf("%s \n", info);
+	printhex(output, len);
+}
+
 int getnum(char c)
 {
 	if ('0'<= c && c <= '9')
@@ -254,6 +233,97 @@ int readhex(unsigned char * output, const char * input, int len)
 	return len>>1;
 }
 
+
+int sm2verify(int fd, unsigned long int cmd, char * message,  int messlen, char * username, unsigned char * signature, int signlen, unsigned char * key, int keylen)
+{
+	CMpi x,y;
+	CECCPublicKey pk;
+	int ret = -1;
+	if(keylen < 2*SM2_KEY_LEN)
+	{
+		printf("sm2 key error: not a sm2 public key\n");
+		return -1;
+	}
+	if(signlen != 2*SM2_KEY_LEN)
+	{
+		printf("sm2 signature error: not a signature\n");
+		return -1;
+	}
+	if(messlen > SM2_MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
+		return -1;
+	}
+
+	LOOP--;
+	CMpiInport(&x, key, SM2_KEY_LEN);
+	CMpiInport(&y, key + SM2_KEY_LEN, SM2_KEY_LEN);
+	SetPublicKey(&pk,&x,&y);
+
+	ret = VerifyMessage(&pk, message, messlen, signature, signlen, username, strlen(username));
+	return ret;
+}
+
+int sm2enc(int fd, unsigned long int cmd, char * message,  int messlen, unsigned char * key, int keylen, char * out)
+{
+	CMpi x,y;
+	CECCPublicKey pk;
+	unsigned char randbuff[SM2_KEY_LEN];
+	unsigned char cipher[1+SM2_KEY_LEN*3+SM2_MAX_PLAIN_LEN];
+	int ret = -1, i;
+
+	if(keylen < 2*SM2_KEY_LEN)
+	{
+		printf("sm2 key error: not a sm2 public key\n");
+		return -1;
+	}
+	if(messlen > SM2_MAX_PLAIN_LEN)
+	{
+		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
+		return -1;
+	}
+
+	srand((int) time(0) + getpid());
+	for(i=0; i<SM2_KEY_LEN; i++)	
+		randbuff[i] = rand();
+	
+	LOOP--;
+	CMpiInport(&x,key ,SM2_KEY_LEN);
+	CMpiInport(&y, key + SM2_KEY_LEN, SM2_KEY_LEN);
+	SetPublicKey(&pk,&x,&y);
+	ret = EncryptMessage(&pk, cipher+1, message, messlen, randbuff, SM2_KEY_LEN);
+	if(ret == 0)
+	{
+		printf("SM2 Enc failed\n");
+		return -1;
+	}
+	cipher[0] = 0x04;
+	ret++;
+	return writehex(out, cipher, ret);
+}
+
+int sm3hash(int fd, int infd, char * out)
+{
+	SM3_Para testsm3;
+	int ret = -1;
+
+	LOOP--;
+	testsm3.plainLen = 0;
+	Sm3HashInit((SM3_HASH_STATE *)&(testsm3.state), testsm3.plain, testsm3.plainLen);
+	int length;
+	while((length = read(infd, testsm3.plain ,MAX_PLAIN_LEN) ) > 0)
+	{
+		testsm3.plainLen = length;
+		Sm3HashPending((SM3_HASH_STATE *)&(testsm3.state), testsm3.plain, testsm3.plainLen);
+	}
+	Sm3HashFinal(testsm3.digest ,(SM3_HASH_STATE *)&(testsm3.state));
+
+	return writehex(out, testsm3.digest, SM3_DIGEST_LEN);
+}
+
+
+
+// below this is need to use kernel
 int gensm2key(int fd, unsigned long int cmd, char * out){
 	Gen_Key_Para sm2genkey;
 	uint8_t buff[SM2_KEY_LEN*3];
@@ -277,52 +347,6 @@ int gensm2key(int fd, unsigned long int cmd, char * out){
 	memcpy(buff+SM2_KEY_LEN, sm2genkey.y, SM2_KEY_LEN);
 	memcpy(buff+2*SM2_KEY_LEN, sm2genkey.d, SM2_KEY_LEN);
 	return writehex(out, buff, SM2_KEY_LEN*3);
-}
-
-int sm2verify(int fd, unsigned long int cmd, char * message,  int messlen, char * username, unsigned char * signature, int signlen, unsigned char * key, int keylen)
-{
-	SM2_SIGN_Para testsm2sign;
-	// uint8_t buff[SM2_KEY_LEN*3];
-	int ret = -1;
-	if(keylen < 2*SM2_KEY_LEN)
-	{
-		printf("sm2 key error: not a sm2 public key\n");
-		return -1;
-	}
-	if(signlen != 2*SM2_KEY_LEN)
-	{
-		printf("sm2 signature error: not a signature\n");
-		return -1;
-	}
-	if(messlen > SM2_MAX_PLAIN_LEN)
-	{
-		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-		return -1;
-	}
-	
-	// SYX: DBG
-	// printf("%d : %s\n", messlen, message );
-	// printhex(signature, signlen);
-
-	memcpy(testsm2sign.pin,pin,PIN_LEN);
-	testsm2sign.len = messlen;
-	memcpy(testsm2sign.message, message, messlen);
-	memcpy(testsm2sign.x, key, SM2_KEY_LEN);
-	memcpy(testsm2sign.y, key + SM2_KEY_LEN, SM2_KEY_LEN);
-	testsm2sign.LenOfpUserName = strlen(username);
-	memcpy(testsm2sign.pUserName, username, testsm2sign.LenOfpUserName);
-	testsm2sign.LenOfsign = signlen;
-	memcpy(testsm2sign.sign, signature, signlen);
-
-	do{
-		LOOP --; 
-		ret = ioctl(fd, cmd, &testsm2sign);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-
-	return ret;
 }
 
 int sm2sign(int fd, unsigned long int cmd, char * message,  int messlen, char * username, unsigned char * key, int keylen, char * out)
@@ -406,62 +430,26 @@ int sm2dec(int fd, unsigned long int cmd, unsigned char * message,  int messlen,
 	return testsm2.len;
 }
 
-int sm2enc(int fd, unsigned long int cmd, char * message,  int messlen, unsigned char * key, int keylen, char * out)
-{
-	SM2_Para testsm2;
-	int ret = -1;
-	if(keylen < 2*SM2_KEY_LEN)
-	{
-		printf("sm2 key error: not a sm2 public key\n");
-		return -1;
-	}
-	if(messlen > SM2_MAX_PLAIN_LEN)
-	{
-		printf("too long message, not longer than %d \n", SM2_MAX_PLAIN_LEN);
-		return -1;
-	}
-
-	memcpy(testsm2.pin,pin,PIN_LEN);
-	memcpy(testsm2.x, key, SM2_KEY_LEN);
-	memcpy(testsm2.y, key + SM2_KEY_LEN, SM2_KEY_LEN);
-	testsm2.len = messlen;
-	memcpy(testsm2.plain, message, messlen);
-	memset(testsm2.cipher, 0, 1+SM2_KEY_LEN*3+SM2_MAX_PLAIN_LEN);
-
-	do{
-		LOOP --; 
-		ret = ioctl(fd, cmd, &testsm2);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("SM2 Enc failed\n");
-		return -1;
-	}
-	return writehex(out, testsm2.cipher, testsm2.len);
-}
-
-// hmac inner hash output need to be encrypted
 int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 {
-	GM_PAD	 testpad;
-	SM3_Para testsm3;
-	unsigned char hmacdigest[32];
+
 	int ret = -1, cur= LOOP;
+	int length;
+	GM_HMAC	 testhmac;
+	
 	if(keylen > GM_HMAC_MD_CBLOCK_SIZE)
 		keylen = GM_HMAC_MD_CBLOCK_SIZE;
 	
 
-	memcpy(testpad.pin,pin,PIN_LEN);
-	memcpy(testsm3.pin,pin,PIN_LEN);
+	memcpy(testhmac.pin,pin,PIN_LEN);
 
-	//ipad
-	testpad.len = keylen;
-	memcpy(testpad.pad, key, keylen);
+	testhmac.klen = keylen;
+	memcpy(testhmac.key, key, keylen);
+
+	//init 
 	do{
 		LOOP --; 
-		ret = ioctl(fd, SAFE_IPAD, &testpad);
+		ret = ioctl(fd, HMAC_INIT, &testhmac);
 		if(ret != -1) {
 			break;
 		}
@@ -471,47 +459,15 @@ int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 		return -1;
 	}
 
-	// sm3 init
-	testsm3.plainLen = 0;
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_INIT ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-	//sm3 ipad block
-	testsm3.state.in_encrypted = 1;
-	testsm3.state.out_encrypted = 1;
-	testsm3.plainLen = GM_HMAC_MD_CBLOCK_SIZE;
-	memcpy(testsm3.plain,testpad.pad,testsm3.plainLen);
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_UPDATE ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	//sm3 update
-	int length;
-	while((length = read(infd, testsm3.plain ,MAX_PLAIN_LEN) ) > 0)
+	//update
+	
+	while((length = read(infd, testhmac.plain ,MAX_PLAIN_LEN) ) > 0)
 	{
-		testsm3.plainLen = length;
+		testhmac.plainlen = length;
 		LOOP = cur;
 		do{
 			LOOP --; 
-			ret = ioctl(fd, SM3_SAFE_UPDATE ,&testsm3);
+			ret = ioctl(fd, HMAC_UPDATE ,&testhmac);
 			if(ret != -1) {
 				break;
 			}
@@ -522,11 +478,14 @@ int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 		}
 	}
 
-	//sm3 final
+	//final
+	testhmac.klen = keylen;
+	memcpy(testhmac.key, key, keylen);
+	testhmac.plainlen = 0;
 	LOOP = cur;
 	do{
 		LOOP --; 
-		ret = ioctl(fd,SM3_SAFE_FINAL,&testsm3);
+		ret = ioctl(fd, HMAC_FINAL, &testhmac);
 		if(ret != -1) {
 			break;
 		}
@@ -536,199 +495,77 @@ int sm3hmac(int fd, int infd, unsigned char * key, int keylen, char * out)
 		return -1;
 	}
 
-	memcpy(hmacdigest,testsm3.digest,SM3_DIGEST_LEN);
-
-	//opad
-	testpad.len = keylen;
-	memcpy(testpad.pad, key, keylen);
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SAFE_OPAD, &testpad);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("Hmac failed\n");
-		return -1;
-	}
-
-	// sm3 init
-	testsm3.plainLen = 0;
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_INIT ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	//sm3 opad block
-	testsm3.state.in_encrypted = 1;
-	testsm3.state.out_encrypted = 1;
-	testsm3.plainLen = GM_HMAC_MD_CBLOCK_SIZE;
-	memcpy(testsm3.plain,testpad.pad,testsm3.plainLen);
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_UPDATE ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	//sm3 update
-	testsm3.state.in_encrypted = 1;
-	testsm3.state.out_encrypted = 1;
-	testsm3.plainLen = SM3_DIGEST_LEN;
-	memcpy(testsm3.plain,hmacdigest,testsm3.plainLen);
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_UPDATE ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	//sm3 final
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, SM3_SAFE_FINAL, &testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	// hmac val in encrypted
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, HMAC_FINAL_DEC, &testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("HMAC failed\n");
-		return -1;
-	}
-
-	return writehex(out, testsm3.digest, SM3_DIGEST_LEN);
+	return writehex(out, testhmac.digest, SM3_DIGEST_LEN);
 }
 
-int sm3hash(int fd, int mode, int infd, char * out)
-{
-	unsigned long int start, mid, end, cur= LOOP; 
-	SM3_Para testsm3;
-	int ret = -1;
-
-	if(mode == 0){	//normal
-		start = SM3_INIT;
-		mid = SM3_UPDATE;
-		end = SM3_FINAL;
-	} else { //safe
-		start = SM3_SAFE_INIT;
-		mid = SM3_SAFE_UPDATE;
-		end = SM3_SAFE_FINAL;
-	}
-	memcpy(testsm3.pin,pin,PIN_LEN);
-
-	testsm3.plainLen = 0;
-	do{
-		LOOP --; 
-		ret = ioctl(fd, start ,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("SM3 failed\n");
-		return -1;
-	}
-	int length;
-	while((length = read(infd, testsm3.plain ,MAX_PLAIN_LEN) ) > 0)
-	{
-		testsm3.plainLen = length;
-		LOOP = cur;
-		do{
-			LOOP --; 
-			ret = ioctl(fd, mid ,&testsm3);
-			if(ret != -1) {
-				break;
-			}
-		} while(LOOP);
-		if(ret == -1){
-			printf("SM3 failed\n");
-			return -1;
-		}
-	}
-	LOOP = cur;
-	do{
-		LOOP --; 
-		ret = ioctl(fd,end,&testsm3);
-		if(ret != -1) {
-			break;
-		}
-	} while(LOOP);
-	if(ret == -1){
-		printf("SM3 failed\n");
-		return -1;
-	}
-
-	return writehex(out, testsm3.digest, SM3_DIGEST_LEN);
-}
+// char buffer[10000];
 
 //SYX : now we only use ECB
-int sm4opt(int fd, int mode, char * message,  int messlen, unsigned char * key, int keylen, char * out)
+int sm4opt(int fd, int infd, int mode, unsigned char * key, int keylen, int outfd)
 {
 	SM4_Para testsm4;
-	int ret = -1;
+	int ret = -1, cur= LOOP;
+	int length;
+	unsigned char * in , * out;
+	
 	if(keylen < SM4_KEY_LEN)
 	{
 		printf("sm4 key error: not a sm4 key\n");
 		return -1;
 	}
-	if(messlen > MAX_PLAIN_LEN)
-	{
-		printf("too long message, not longer than %d \n", MAX_PLAIN_LEN);
-		return -1;
-	}
+	// if(messlen > MAX_PLAIN_LEN)
+	// {
+	// 	printf("too long message, not longer than %d \n", MAX_PLAIN_LEN);
+	// 	return -1;
+	// }
 
 	memcpy(testsm4.pin,pin,PIN_LEN);
-	testsm4.mode = 1; //ECB
+	testsm4.mode = 2; //ECB
 	testsm4.flag = mode;
 	memcpy(testsm4.key, key, SM4_KEY_LEN);
-	testsm4.len = messlen;
-	if(mode == 0)	//dec
-	{
-		memcpy(testsm4.cipher, message, messlen);
-	} else {	//enc
-		memcpy(testsm4.plain, message, messlen);
+	testsm4.hasiv = 0;
+
+	if(mode == 0){
+		in = testsm4.cipher, out = testsm4.plain;
+	} else {
+		in = testsm4.plain, out = testsm4.cipher;
 	}
-	
+
+	int first =1;
+	while((length = read(infd, in ,MAX_PLAIN_LEN) ) > 0)
+	{
+		
+		testsm4.len = length;
+		LOOP = cur;
+		do{
+			LOOP --; 
+			ret = ioctl(fd, SM4_OP ,&testsm4);
+			if(ret != -1) {
+				break;
+			}
+		} while(LOOP);
+		if(ret == -1){
+			printf("SM4 failed\n");
+			return -1;
+		}
+		if(first && mode && testsm4.len)	//we recieved the enc and first block
+		{
+			first = 0;
+			write(outfd, testsm4.iniv, 16);
+		}
+		write(outfd, out, testsm4.len);
+	}
+
+	if(mode == 0 && (testsm4.lastlen & 15))
+	{
+		printf("SM4 cipher length error\n");
+		return -1;
+	}
+	testsm4.len = 0;
+	LOOP = cur;
 	do{
 		LOOP --; 
-		ret = ioctl(fd, SM4_OP, &testsm4);
+		ret = ioctl(fd, SM4_OP_PAD, &testsm4);
 		if(ret != -1) {
 			break;
 		}
@@ -737,15 +574,16 @@ int sm4opt(int fd, int mode, char * message,  int messlen, unsigned char * key, 
 		printf("SM4 failed\n");
 		return -1;
 	}
-
-	if(mode == 0)	//dec
+	if(first && mode)	//enc and first block
 	{
-		ret = testsm4.len;
-		memcpy(out, testsm4.plain, testsm4.len);
-	} else {	//enc
-		ret = writehex(out, testsm4.cipher, testsm4.len);
+		first = 0;
+		write(outfd, testsm4.iniv, 16);
 	}
-	return ret;
+	write(outfd, out, testsm4.len);
+	// printf("1\n");
+	// printf("%d, %d\n", testsm4.len, testsm4.lastlen);
+
+	return 1;
 }
 
 // this will compute the key in cpu in debug mode
@@ -756,6 +594,11 @@ void fordebug(unsigned char * outtemp)
 	memcpy(key,"12345678",8);
 	unsigned char salt[8] = {0x1,0x2,0x3,0x3,0x5,0x6,0x7,0x8};
 	PBKDF2(outtemp, key, MASTER_KEY_SIZE, salt, 8, 1000, 16);
+}
+
+int issafe(int type)
+{
+	return (type == INIT) || (type == SAFEKEYGEN) || (type == SAFESIGN) || (type == SM2SAFEDEC) || (type == SM4ENC) || (type == SM4DEC) || (type == HMAC);
 }
 
 void *testthread(void *para1){
@@ -795,8 +638,8 @@ void *testthread(void *para1){
 
 	//check param
 	switch(type){
-		case 4: case 5: 
-		case 9:
+		case SIGN: case SAFESIGN: 
+		case VERIFY:
 		//in key username out
 		if(!username){
 			printf("%s need a username, use -u \"username\" \n", typechar[type-2]);
@@ -826,7 +669,7 @@ void *testthread(void *para1){
 		if(keylen < 0)
 			goto err3;
 
-		case 10: case 11:
+		case 10:
 		// in out
 		if(!infile){
 			printf("%s need a message file, use -i /path/to/file\n", typechar[type-2]);
@@ -859,7 +702,7 @@ void *testthread(void *para1){
 		}
 	}
 
-	if(!debugFlag)
+	if(!debugFlag && issafe(type))
 		getpin();
 
 	if(type == 2 || type == 3)	//gen key
@@ -890,13 +733,11 @@ void *testthread(void *para1){
 			printf("error signature\n");
 			ret = 0;
 		}
-	} else if (type == 10 || type == 11 || type == 14) {	//hash and HMAC
+	} else if (type == 10 || type == 14) {	//hash and HMAC
 		if(type == 14)
 			outlen = sm3hmac(fd, infd, key, keylen, out);
 		if(type == 10)
-			outlen = sm3hash(fd, 0, infd, out);
-		if(type == 11)
-			outlen = sm3hash(fd, 1, infd, out);
+			outlen = sm3hash(fd, infd, out);
 	} else {
 		if(type == 4 || type == 5) // sign
 		{
@@ -934,19 +775,23 @@ void *testthread(void *para1){
 		if(type == 12 || type == 13)	//SM4 ENC/ DEC
 		{
 			if(type == 12){
-				messlen = read(infd, message, sizeof(message));
-				outlen = sm4opt(fd, 1, message, messlen, key, keylen, out); //ENC
+				// messlen = read(infd, message, sizeof(message));
+				outlen = sm4opt(fd, infd, 1, key, keylen, outfd); //ENC
 			}
 			else{
-				messlen = read(infd, buff, sizeof(buff));
+				// messlen = read(infd, buff, sizeof(buff));
 				messlen = readhex(message, buff, messlen);
-				outlen = sm4opt(fd, 0, message, messlen, key, keylen, out); //DEC
+				outlen = sm4opt(fd, infd, 0, key, keylen, outfd); //DEC
+			}
+			if(outlen > 0){
+				ret = 1;
+				printf("Get the result in the file %s\n", outfile);
 			}
 		}
 	}
 
 	// end
-	if(type != 9)
+	if(type != 9 && type !=12 && type != 13)
 	{
 		if(outlen > 0){
 			write(outfd, out, outlen);
@@ -1134,14 +979,14 @@ void showhelp(void)
 {
 	printf("./user: type [-l] Loopnum(0:loop until success default) [-d] debug(0:no debug default, 1:debug)\n");
 	printf("type: \n");
-	printf("\t--0 generage the signature of the module\n");
+	// printf("\t--0 generage the signature of the module\n");
 	printf("\t--1 Init the module (setting the Masterkey and the PIN)\n");
 	printf("\t--2 SM2 KeyGen \t\t --3 Safe SM2 KeyGen\n "); 
 	printf("\t--4 SM2 Sign \t\t --5 Safe SM2 Sign\n ");
 	printf("\t--6 SM2 Dec \t\t --7 Safe SM2 Dec\n");
 	printf("\t--8 SM2 Enc \n");
 	printf("\t--9 SM2 Verify\n");
-	printf("\t--10 SM3 Digest \t --11 Safe SM3 Digest\n");
+	printf("\t--10 SM3 Digest\n");
 	printf("\t--12 Safe SM4 Enc\n");
 	printf("\t--13 Safe SM4 Dec\n");
 	printf("\t--14 Safe HMAC\n");
@@ -1159,7 +1004,7 @@ int main(int argc, char **argv){
 	}
 
 	int type = atoi(argv[1]);
-	if(type < 0 || type > 14) 
+	if(type < 0 || type > 14 || type == 11) 
 	{
 		showhelp();
 		return -1;
@@ -1167,6 +1012,7 @@ int main(int argc, char **argv){
 
 	//TODO: flat the param
 
+	CEllipticCurveInitParam();
 	int optc;
 	Main_Para mpara={NULL, NULL, NULL, NULL, type};
 	while((optc = getopt(argc, argv, "hdl:i:o:k:u:")) != -1)
@@ -1232,7 +1078,7 @@ int main(int argc, char **argv){
 	gettimeofday(&end,NULL);
 
 	if(debugFlag)
-		printf("LOOP: %d \t type: %s \t speed: %f\n", cur - LOOP, typechar[type-2], (float)1000000/(end.tv_usec-beg.tv_usec+1000000*(end.tv_sec-beg.tv_sec)));		
+		printf("LOOP: %d \t type: %s \t time: %.3fms\n", cur - LOOP, typechar[type-2], 1.0*(end.tv_usec-beg.tv_usec)/1000 + 1.0*(end.tv_sec-beg.tv_sec)*1000);		
 	return 0;
 }
 

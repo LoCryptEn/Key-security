@@ -9,6 +9,19 @@
 #include <linux/ioctl.h>
 #endif
 
+#define INIT 1
+#define KEYGEN 2
+#define SAFEKEYGEN 3
+#define SIGN 4
+#define SAFESIGN 5
+#define SM2DEC 6
+#define SM2SAFEDEC 7
+#define SM2ENC 8
+#define VERIFY 9
+#define DIGEST 10
+#define SM4ENC 12
+#define SM4DEC 13
+#define HMAC 14
 
 
 #define IsoToken_IOC_ID 'T'
@@ -20,34 +33,48 @@
 #define SM4_KEY_LEN 	16
 #define SM3_DIGEST_LEN	32
 
+
+
 #define SM2_KEYGEN	_IOWR(IsoToken_IOC_ID,1,int)
 #define SM2_SIGN	_IOWR(IsoToken_IOC_ID,2,int)
 #define SM2_DEC		_IOWR(IsoToken_IOC_ID,3,int)
 #define SM2_VERIFY	_IOWR(IsoToken_IOC_ID,4,int)
 #define SM2_ENC		_IOWR(IsoToken_IOC_ID,5,int)
 
-#define SM2_ENC_TEST		_IOWR(IsoToken_IOC_ID,25,int)
-#define SM2_SIGN_TEST		_IOWR(IsoToken_IOC_ID,26,int)
+
 
 #define SM3_DIGEST	_IOWR(IsoToken_IOC_ID,6,int)
 #define SM3_INIT	_IOWR(IsoToken_IOC_ID,7,int)
 #define SM3_UPDATE	_IOWR(IsoToken_IOC_ID,8,int)
 #define SM3_FINAL	_IOWR(IsoToken_IOC_ID,9,int)
 
-#define SM4_OP		_IOWR(IsoToken_IOC_ID,10,int)
 
-#define SM2_SAFE_DEC _IOWR(IsoToken_IOC_ID,11,int)
 #define SM3_SAFE_INIT _IOWR(IsoToken_IOC_ID,12,int)
 #define SM3_SAFE_UPDATE _IOWR(IsoToken_IOC_ID,13,int)
 #define SM3_SAFE_FINAL _IOWR(IsoToken_IOC_ID,14,int)
 #define HMAC_FINAL_DEC _IOWR(IsoToken_IOC_ID,15,int)
 #define SAFE_IPAD _IOWR(IsoToken_IOC_ID,16,int)
 #define SAFE_OPAD _IOWR(IsoToken_IOC_ID,17,int)
-#define INIT _IOWR(IsoToken_IOC_ID,18,int)
+
+
+
+
 #define SELF_TEST _IOWR(IsoToken_IOC_ID,19,int)
+#define SM2_ENC_TEST		_IOWR(IsoToken_IOC_ID,25,int)
+#define SM2_SIGN_TEST		_IOWR(IsoToken_IOC_ID,26,int)
+
+#define INIT _IOWR(IsoToken_IOC_ID,18,int)
 
 #define SM2_SAFE_SIGN  _IOWR(IsoToken_IOC_ID,22,int)
 #define SM2_SAFE_KEYGEN _IOWR(IsoToken_IOC_ID, 23, int)
+#define SM2_SAFE_DEC _IOWR(IsoToken_IOC_ID,11,int)
+
+#define HMAC_INIT	_IOWR(IsoToken_IOC_ID,30,int)
+#define HMAC_UPDATE	_IOWR(IsoToken_IOC_ID,31,int)
+#define HMAC_FINAL	_IOWR(IsoToken_IOC_ID,32,int)
+
+#define SM4_OP		_IOWR(IsoToken_IOC_ID,10,int)
+#define SM4_OP_PAD		_IOWR(IsoToken_IOC_ID,35,int)
 
 #define GM_HMAC_MD_CBLOCK_SIZE      64 //144
 #define PRE_MASTER_KEY_SIZE			48
@@ -74,6 +101,23 @@ typedef struct {
 	int len;
 	unsigned char pin[PIN_LEN];
 }GM_PAD;
+
+typedef struct {
+	unsigned int H[8];
+    unsigned char BB[64];
+    unsigned long long u64Length;
+	unsigned long long pad;
+}SM3_STATE_CIPHER;
+
+
+typedef struct {
+	SM3_STATE_CIPHER state;
+	unsigned char key[GM_HMAC_MD_CBLOCK_SIZE];
+	uint8_t digest[SM3_DIGEST_LEN];
+	unsigned char pin[PIN_LEN];
+	int klen, plainlen;
+	uint8_t plain[MAX_PLAIN_LEN];
+}GM_HMAC;
 
 typedef struct _INIT_Para{
 	uint8_t masterKey[MASTER_KEY_SIZE];
@@ -130,13 +174,17 @@ typedef struct _SM3_Para
 typedef struct _SM4_Para
 {
 	int 	len;					//the length of plain or cipher
+	int 	lastlen;				//the length of last
 	int 	mode;					//1:ecb  	2:cbc
 	int 	flag;					//0:dec 	1:enc 
+	int 	hasiv;					//0:no iv	1:has iv
 	uint8_t key[SM4_KEY_LEN];
+	uint8_t	iniv[SM4_KEY_LEN];
 	uint8_t	iv[SM4_KEY_LEN];
-	uint8_t plain[MAX_PLAIN_LEN];
 	uint8_t cipher[MAX_PLAIN_LEN];
+	uint8_t plain[MAX_PLAIN_LEN];
 	unsigned char pin[PIN_LEN];
+	uint8_t last[SM4_KEY_LEN];	//don't need to encrypt
 }SM4_Para;
 
 //for TSX

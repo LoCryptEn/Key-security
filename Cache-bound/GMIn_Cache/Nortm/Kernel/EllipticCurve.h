@@ -83,6 +83,9 @@ void CEllipticCurveMultiplyGByTable4(CMpi *x, CMpi *y, CMpi *z, CMpi *m);
 //int HashUserId(unsigned char *pbOut, const unsigned char *pUserName, int iLenOfName);
 int PubHashUserId(CECCPublicKey *t, unsigned char *pbOut, unsigned char *pUserName, int iLenOfName);
 int PriHashUserId(CECCPrivateKey *t, unsigned char *pbOut, unsigned char *pUserName, int iLenOfName);
+
+int ImportSM2Secert(BYTE * d, CMpi * paramD, BYTE * IV);
+
 //int Verify(const unsigned char *pDigest, int iLenOfDigest, const unsigned char *pSig, int iLenOfSig);
 int Verify(CECCPublicKey *pk,unsigned char *pDigest, int iLenOfDigest, unsigned char *pSig, int iLenOfSig);
 //int Encrypt(unsigned char *pbCipher1, unsigned char *pbX2, unsigned char *pbY2, const unsigned char *pRnd, int iLenOfRnd);
@@ -114,6 +117,6 @@ int DecryptMessage(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char *pbI
 int GenerateKeySafe(CECCPrivateKey *sk,  unsigned char *pRandomUser,int iLenOfRandom);
 int SignMessageSafe(CECCPrivateKey *sk, unsigned char *pOut, unsigned char *pMsg, int iLenOfMsg, unsigned char *pUserName, int iLenOfUserName, unsigned char *pRnd, int iLenOfRnd);
 int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char *pbIn, int iLenOfIn);
-int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi *PubX, CMpi *PubY);
+int CEllipticCurveMultiplyPubByTable6Safe(MpiCipher *x, MpiCipher *y, MpiCipher *z, CMpi *m, CMpi *PubX, CMpi *PubY);
 int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m);
 #endif // !defined(AFX_ELLIPTICCURVE_H__0372B568_C633_4807_B268_B59E2CDE28B5__INCLUDED_)

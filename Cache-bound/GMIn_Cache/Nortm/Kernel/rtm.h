@@ -60,4 +60,64 @@ static __rtm_force_inline int _xtest(void)
 	return out;
 }
 
+# define TSX_FAIL -128
+
+/* 
+ * tsxflag 0 for TSX abort, 1 for TSX success
+*/
+
+/*
+#define tsx_var(tsxflag, flags, try, status)	\
+	#ifdef TSX_ENABLE	\
+		int tsxflag = 0;	\
+		int status,try = 0;	\
+		unsigned long flags;	\
+	#endif
+*/
+
+#define tsx_header(transaction, i, tsxflag, flags, try, status) \
+	tsxflag = 0;	\
+	try = 0;	\
+	while(!tsxflag ){	\
+		get_cpu();	\
+		local_irq_save(flags);	\
+		while(1){	\
+			if(++try == TSX_MAX_TIMES){	\
+				local_irq_restore(flags);	\
+				put_cpu();	\
+				if(_xtest()){	\
+					_xend();	\
+				}	\
+				printk("DEBUG: %s %d aborted %d times\n", transaction, i, try);	\
+				return TSX_FAIL;	\
+			}	\
+			status = _xbegin();	\
+			if (status == _XBEGIN_STARTED)	\
+				break;	\
+		}
+
+#define tsx_normal_tailer(tsxflag, flags) \
+		tsxflag = 1; 	\
+		if(_xtest()){ 	\
+			_xend(); 	\
+		}	\
+		local_irq_restore(flags);	\
+		put_cpu();	\
+		if(!tsxflag){	\
+			set_current_state(TASK_INTERRUPTIBLE);	\
+			schedule_timeout(10);	\
+		}	\
+	}
+// need to add:?
+// if(!tsxflag)
+//		return TSX_FAIL;
+//
+
+#define tsx_error_tailer(flags)	\
+	local_irq_restore(flags);	\
+	put_cpu();	\
+	if(_xtest()){	\
+		_xend();	\
+	}
+
 #endif

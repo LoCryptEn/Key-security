@@ -6,6 +6,7 @@
 #if !defined(AFX_MPI_H__B3328615_E05B_11D4_961E_0050FC0F4715__INCLUDED_)
 #define AFX_MPI_H__B3328615_E05B_11D4_961E_0050FC0F4715__INCLUDED_
 
+#include"SMS4.h"
 
 #define DCS_ECC_KEY_LENGTH	 (256/8)
 #define MPI_LENGTH 8		// 256/8/4 = 8
@@ -40,6 +41,13 @@ typedef struct structCMpi
 	int m_pad;//for enc and dec
 }CMpi;
 
+typedef struct mpiCipher
+{
+	BYTE IV[SMS4_BLOCK_LENGTH];
+	CMpi a;
+}MpiCipher;
+
+#define MPI_CIPHER sizeof(MpiCipher)
 
 /* Long Multi precision integer */
 typedef struct structCMpl
@@ -53,6 +61,7 @@ typedef struct structCModulus
 	CMpi m_oModulus;
 }CModulus;
 /**************begin for CMpi Class***********************/
+void showcmpi(char * info, CMpi * s);
 int CMpiIsNegative(CMpi * t);
 int CMpiGetLengthInBits(CMpi * t);
 int CMpiExport(CMpi * t, BYTE *abOutBytes, int iMinLength);	

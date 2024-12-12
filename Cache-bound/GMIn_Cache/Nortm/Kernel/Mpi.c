@@ -3,6 +3,16 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Mpi.h"
+#include <linux/kernel.h>
+void showcmpi(char * info, CMpi * s)
+{
+	int i=0;
+	printk("DEBUG: %s\n", info);
+	for (; i<s->m_iLengthInInts; i++)
+	{
+		printk("\t DEBUG: %x\n", s->m_aiMyInt[i]);
+	}
+}
 
 int CMpiIsNegative(CMpi * t)
 {
@@ -1481,6 +1491,7 @@ void CModulusInit(CModulus *t)
 	CMpiInitN(&(t->m_oModulus),0);
 }
 
+//SYX: need to speed up
 void CModulusBinaryInverse(CMpi *res, CModulus *t,  CMpi *oMpi)
 {
 	CMpi u;

@@ -1,5 +1,8 @@
 #include "sm3hash.h"
 
+void printinfohex(char *info, unsigned char * output, int len);
+
+
     unsigned int test[8] = {
         0x7380166F,
         0x4914B2B9,
@@ -245,6 +248,9 @@ void Sm3HashInit(SM3_HASH_STATE *pState, const unsigned char *pIn, unsigned int 
     for (i = 0; i < (iInLen & 63); i++)
         pState->BB[i] = pIn[(iInLen&0xffffffc0)+i];
 
+    
+    // printinfohex("Sm3HashInit", (unsigned char *)pState->H, 8*4);
+
     // pState->num = iInLen & 63;
 }
 
@@ -272,6 +278,7 @@ void Sm3HashPending(SM3_HASH_STATE *pState, const unsigned char *pIn, unsigned i
     }
     for(i = pState->u64Length % 64;i<64;i++)
         pState->BB[i] = 0;
+    // printinfohex("Sm3HashPending", (unsigned char *)pState->H, 8*4);
 }
 
 int Sm3HashFinal(unsigned char *pOut, SM3_HASH_STATE *pState) {
@@ -326,6 +333,7 @@ int Sm3HashFinal(unsigned char *pOut, SM3_HASH_STATE *pState) {
         pOut[i*4+3] = (unsigned char)(pState->H[i]);
     }
 
+    // printinfohex("Sm3HashFinal", (unsigned char *)pState->H, 8*4);
     return 1;
 }
 

@@ -7,6 +7,9 @@ sbox:
 .type sm4_enc_master, @function
 .globl sm4_enc_master
 
+# SYX: provide a key extend function to reuse
+
+# rdi = NULL, rsi = inputplain, rdx = outputcipher
 sm4_enc_master:
 	# ready
 	push %rbx # push sample register need calle save

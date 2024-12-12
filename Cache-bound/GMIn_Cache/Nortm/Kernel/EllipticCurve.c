@@ -10,6 +10,7 @@
 #include "rtm.h"
 #include "SMS4.h"
 #include "tsx.h"
+void printinfohex(char *info, unsigned char * output, int len);
 
 unsigned char g_pInv2[DCS_ECC_KEY_LENGTH] = {0x7f ,0xff ,0xff ,0xff ,0x7f ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0xff ,0x80 ,0x00 ,0x00 ,0x00 ,0x80 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00};
 
@@ -1077,97 +1078,70 @@ void CEllipticCurveMultiplyPubByTable5(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX, CM
 }
 
 // By decrypt_safe
-int CEllipticCurveMultiplyPubByTable5Safe(CMpi *x, CMpi *y, CMpi *m, CMpi *PubX, CMpi *PubY,unsigned char *pbX2, unsigned char *pbY2)
+int CEllipticCurveMultiplyPubByTable5Safe(CMpi *m, CMpi *PubX, CMpi *PubY,unsigned char *pbX2, unsigned char *pbY2)
 {
 #ifdef TSX_ENABLE
 	unsigned long flags;
 	int status,tsxflag = 0;
 	int try = 0;
 #endif
-
-	CMpi z;
+	MpiCipher cx, cy, cz;
+	// CMpi x, y, z;
 	CModulus *g_paramFieldP = NULL;
 	int id = smp_processor_id();
 	FindGParamP(id,&g_paramFieldP);
 
-	if (CMpiEqualN(m,0) == 1)
-	{
-		CMpiInitN(x,0);
-		CMpiInitN(y,0);
-		return 0;
-	}
-	CMpiInitN(&z,1);
+	// CMpiInitN(&(cz.a),1);
 	
-	if(CEllipticCurveMultiplyPubByTable6Safe(x, y, &z, m, PubX, PubY) ==0)
+	if(CEllipticCurveMultiplyPubByTable6Safe(&cx, &cy, &cz, m, PubX, PubY) <=0)
 	{
 		return 0;
 	}	
 
 #ifdef TSX_ENABLE
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-		}
+	tsx_header("CEllipticCurveMultiplyPubByTable5Safe to Stand", 1, tsxflag, flags, try, status);
 #endif
 
-		SM4DecryptWithMode((BYTE*)x,sizeof(CMpi),(BYTE *)x,sizeof(CMpi),NULL,ECB,NULL);
-		SM4DecryptWithMode((BYTE*)y,sizeof(CMpi),(BYTE *)y,sizeof(CMpi),NULL,ECB,NULL);
-		SM4DecryptWithMode((BYTE*)&z,sizeof(CMpi),(BYTE *)&z,sizeof(CMpi),NULL,ECB,NULL);
-		CEllipticCurveJacobian2Stand(x, y, &z);
-		if(CMpiEqualN(y,0) == 1)
-		{
-
+	SM4DecryptWithMode((BYTE*)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+	SM4DecryptWithMode((BYTE*)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+	SM4DecryptWithMode((BYTE*)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
+	CEllipticCurveJacobian2Stand(&cx.a, &cy.a, &cz.a);
+	if(CMpiEqualN(&cy.a,0) == 1)
+	{
 #ifdef TSX_ENABLE
-			local_irq_restore(flags);
-			put_cpu();
-			if(_xtest()){
-				_xend();
-			}
+		tsx_error_tailer(flags);
 #endif
-			return 0;		// error
-		}
-		CMpiExport(x, pbX2, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
-		CMpiExport(y, pbY2, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
-		memset(x,0,sizeof(CMpi));
-		memset(y,0,sizeof(CMpi));
-		memset(&z,0,sizeof(CMpi));
-		SM4EncryptWithMode(pbX2,DCS_ECC_KEY_LENGTH,pbX2,DCS_ECC_KEY_LENGTH,NULL,ECB,NULL);
-		SM4EncryptWithMode(pbY2,DCS_ECC_KEY_LENGTH,pbY2,DCS_ECC_KEY_LENGTH,NULL,ECB,NULL);
-
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
+		return 0;		// error
 	}
-	return tsxflag;
-#else
-	return 1;
+	CMpiExport(&cx.a, pbX2, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
+	CMpiExport(&cy.a, pbY2, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
+	memset(&cx,0,sizeof(cx));
+	memset(&cy,0,sizeof(cy));
+	memset(&cz,0,sizeof(cz));
+	SM4EncryptWithMode(pbX2,DCS_ECC_KEY_LENGTH,pbX2,DCS_ECC_KEY_LENGTH,NULL,ECB,NULL);
+	SM4EncryptWithMode(pbY2,DCS_ECC_KEY_LENGTH,pbY2,DCS_ECC_KEY_LENGTH,NULL,ECB,NULL);
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
 #endif
+
+	return 1;
 }
 
 // By table5 and verify
 // affine format
 // p(x, y, z) = m*Pub_point
-#define WINDOWS_BITS		(4)
+#define windowlen	1
+#define WINDOWS_BITS		(windowlen)
+
+#define window_1(x, y, z)	CEllipticCurveDoubleMplJacobian3(x, y, z);
+#define window_2(x, y, z)	window_1(x, y, z)	window_1(x, y, z)
+#define window_4(x, y, z)	window_2(x, y, z)	window_2(x, y, z)
+
+#define windowlistin(n, x, y, z)	window_##n (x, y, z)
+#define windowlist(n, x, y, z)	windowlistin(n, x, y, z)
+
+
 void CEllipticCurveMultiplyPubByTable6(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi *PubX, CMpi *PubY)
 {
 
@@ -1206,10 +1180,11 @@ void CEllipticCurveMultiplyPubByTable6(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi 
 	{
 		for (k = sizeof(unsigned int)*8 - WINDOWS_BITS; k >= 0; k -= WINDOWS_BITS)
 		{
-			CEllipticCurveDoubleMplJacobian3(x,y,z);
-			CEllipticCurveDoubleMplJacobian3(x,y,z);
-			CEllipticCurveDoubleMplJacobian3(x,y,z);
-			CEllipticCurveDoubleMplJacobian3(x,y,z);
+			// CEllipticCurveDoubleMplJacobian3(x,y,z);
+			// CEllipticCurveDoubleMplJacobian3(x,y,z);
+			// CEllipticCurveDoubleMplJacobian3(x,y,z);
+			// CEllipticCurveDoubleMplJacobian3(x,y,z);
+			windowlist(windowlen, x, y, z)
 			pos = ((m->m_aiMyInt[i] >> k) & ((1<<WINDOWS_BITS)-1));
 			//if (pos)
 			{
@@ -1222,7 +1197,8 @@ void CEllipticCurveMultiplyPubByTable6(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi 
 }
 
 // By table5_safe
-int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CMpi *PubX, CMpi *PubY)
+//(x, y, z) = (PubX, PubY, 1)^m
+int CEllipticCurveMultiplyPubByTable6Safe(MpiCipher *x, MpiCipher *y, MpiCipher *z, CMpi *m, CMpi *PubX, CMpi *PubY)
 {
 	int i, k, pos;
 #ifdef TSX_ENABLE
@@ -1232,51 +1208,21 @@ int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CM
 #endif
 
 	int length;
-	CMpi one;
+	CMpi one, pm;
 	CMpi pre_table[(1<<WINDOWS_BITS)*3];
+	MpiCipher cx, cy, cz;
 
 #ifdef TSX_ENABLE
-	tsxflag = 0;
-	try = 0;
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-		}
+	tsx_header("CEllipticCurveMultiplyPubByTable6Safe get m length", 1, tsxflag, flags, try, status);
 #endif
 
-		SM4DecryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)m,sizeof(CMpi),NULL,ECB,NULL);
-		length = m->m_iLengthInInts-1;
-		SM4EncryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)m,sizeof(CMpi),NULL,ECB,NULL);
+	SM4DecryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)&pm,sizeof(CMpi),NULL,ECB,NULL);
+	length = pm.m_iLengthInInts-1;
+	memset(&pm, 0, sizeof(pm));
+
 #ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
-	}
+	tsx_normal_tailer(tsxflag, flags);
 #endif
-
-	/*pre_table = vmalloc(sizeof(CMpi)*(1<<WINDOWS_BITS)*3);
-	if(pre_table == NULL)
-		return 0;*/
-	
 
 	for(i = 0;i< 1<<WINDOWS_BITS;i++)
 		for(k=0;k<3;k++)
@@ -1286,9 +1232,9 @@ int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CM
 	CMpiAssignCMpi(&(pre_table[1*3+1]),PubY);
 	CMpiInitN(&(pre_table[1*3+2]),1);
 
+	CMpiInitN(&one,1);
 	for (i = 2; i < 1<<WINDOWS_BITS; i += 2)
 	{
-		CMpiInitN(&one,1);
 		CEllipticCurveDoubleMplJacobian6(&(pre_table[i*3+0]), &(pre_table[i*3+1]), &(pre_table[i*3+2]), &(pre_table[(i>>1)*3+0]), &(pre_table[(i>>1)*3+1]), &(pre_table[(i>>1)*3+2]));
 		CMpiAssignCMpi(&(pre_table[(i+1)*3+0]),&(pre_table[i*3+0]));
 		CMpiAssignCMpi(&(pre_table[(i+1)*3+1]),&(pre_table[i*3+1]));
@@ -1297,81 +1243,65 @@ int CEllipticCurveMultiplyPubByTable6Safe(CMpi *x, CMpi *y, CMpi *z, CMpi *m, CM
 	}
 
 
-	CMpiInitN(x,1);
-	CMpiInitN(y,1);
-	CMpiInitN(z,0);
+	CMpiInitN(&(cx.a),1);
+	CMpiInitN(&(cy.a),1);
+	CMpiInitN(&(cz.a),0);
 
-	SM4EncryptWithMode((BYTE *)x,sizeof(CMpi),(BYTE *)x,sizeof(CMpi),NULL,ECB,NULL);
-	SM4EncryptWithMode((BYTE *)y,sizeof(CMpi),(BYTE *)y,sizeof(CMpi),NULL,ECB,NULL);
-	SM4EncryptWithMode((BYTE *)z,sizeof(CMpi),(BYTE *)z,sizeof(CMpi),NULL,ECB,NULL);
+	SM4EncryptWithMode((BYTE *)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+	SM4EncryptWithMode((BYTE *)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+	SM4EncryptWithMode((BYTE *)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
 
 	for (i = length; i >= 0; i--)
 	{
-			for (k = sizeof(unsigned int)*8 - WINDOWS_BITS; k >= 0; k -= WINDOWS_BITS)
+		for (k = sizeof(unsigned int)*8 - WINDOWS_BITS; k >= 0; k -= WINDOWS_BITS)
+		{
+
+#ifdef TSX_ENABLE
+			tsx_header("CEllipticCurveMultiplyPubByTable6Safe window double", i, tsxflag, flags, try, status);
+#endif	
+			SM4DecryptWithMode((BYTE *)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4DecryptWithMode((BYTE *)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4DecryptWithMode((BYTE *)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
+
+			windowlist(windowlen, &(cx.a),&(cy.a),&(cz.a))
+
+			SM4EncryptWithMode((BYTE *)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4EncryptWithMode((BYTE *)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4EncryptWithMode((BYTE *)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
+#ifdef TSX_ENABLE
+			tsx_normal_tailer(tsxflag, flags);
+#endif
+
+#ifdef TSX_ENABLE
+			tsx_header("CEllipticCurveMultiplyPubByTable6Safe window add", i, tsxflag, flags, try, status);
+
+#endif	
+			SM4DecryptWithMode((BYTE *)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4DecryptWithMode((BYTE *)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4DecryptWithMode((BYTE *)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4DecryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)&pm,sizeof(CMpi),NULL,ECB,NULL);
+
+			pos = ((pm.m_aiMyInt[i] >> k) & ((1<<WINDOWS_BITS)-1));
+			if (pos)			//SYX: timing attack?
 			{
-
-#ifdef TSX_ENABLE
-				tsxflag = 0;
-				try = 0;
-				while(!tsxflag ){
-					get_cpu();
-					local_irq_save(flags);
-					while(1){
-						if(++try == TSX_MAX_TIMES){
-							local_irq_restore(flags);
-							put_cpu();
-							if(_xtest()){
-								_xend();
-							}
-							//vfree(pre_table);
-							return 0;
-						}	
-						status = _xbegin();
-						if (status == _XBEGIN_STARTED)
-							break;
-					}
-#endif
-
-					SM4DecryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)m,sizeof(CMpi),NULL,ECB,NULL);
-					SM4DecryptWithMode((BYTE *)x,sizeof(CMpi),(BYTE *)x,sizeof(CMpi),NULL,ECB,NULL);
-					SM4DecryptWithMode((BYTE *)y,sizeof(CMpi),(BYTE *)y,sizeof(CMpi),NULL,ECB,NULL);
-					SM4DecryptWithMode((BYTE *)z,sizeof(CMpi),(BYTE *)z,sizeof(CMpi),NULL,ECB,NULL);
-
-
-
-
-					CEllipticCurveDoubleMplJacobian3(x,y,z);
-					CEllipticCurveDoubleMplJacobian3(x,y,z);
-					CEllipticCurveDoubleMplJacobian3(x,y,z);
-					CEllipticCurveDoubleMplJacobian3(x,y,z);
-					pos = ((m->m_aiMyInt[i] >> k) & ((1<<WINDOWS_BITS)-1));
-					//if (pos)
-					{
-						CEllipticCurveAddMplJacobian6New(x, y, z, &(pre_table[pos*3+0]), &(pre_table[pos*3+1]), &(pre_table[pos*3+2]));
-					}
-
-					pos = 0;
-					SM4EncryptWithMode((BYTE *)m,sizeof(CMpi),(BYTE *)m,sizeof(CMpi),NULL,ECB,NULL);
-					SM4EncryptWithMode((BYTE *)x,sizeof(CMpi),(BYTE *)x,sizeof(CMpi),NULL,ECB,NULL);
-					SM4EncryptWithMode((BYTE *)y,sizeof(CMpi),(BYTE *)y,sizeof(CMpi),NULL,ECB,NULL);
-					SM4EncryptWithMode((BYTE *)z,sizeof(CMpi),(BYTE *)z,sizeof(CMpi),NULL,ECB,NULL);
-
-#ifdef TSX_ENABLE
-					tsxflag = 1;
-					if(_xtest()){
-						_xend();
-					}
-					local_irq_restore(flags);
-					put_cpu();
-					if(!tsxflag){/////wait for a while///////////////////////
-						set_current_state(TASK_INTERRUPTIBLE);
-						schedule_timeout(10);
-					}
-				}
-#endif
+				CEllipticCurveAddMplJacobian6New(&(cx.a), &(cy.a), &(cz.a), &(pre_table[pos*3+0]), &(pre_table[pos*3+1]), &(pre_table[pos*3+2]));
 			}
+
+			pos = 0;
+			memset(&pm, 0, sizeof(pm));
+			SM4EncryptWithMode((BYTE *)&(cx.a),sizeof(CMpi),(BYTE *)&(cx.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4EncryptWithMode((BYTE *)&(cy.a),sizeof(CMpi),(BYTE *)&(cy.a),sizeof(CMpi),NULL,ECB,NULL);
+			SM4EncryptWithMode((BYTE *)&(cz.a),sizeof(CMpi),(BYTE *)&(cz.a),sizeof(CMpi),NULL,ECB,NULL);
+
+#ifdef TSX_ENABLE
+			tsx_normal_tailer(tsxflag, flags);
+#endif
+		}
 	}
-	//vfree(pre_table);
+
+	memcpy(x, &cx, sizeof(cx));
+	memcpy(y, &cy, sizeof(cy));
+	memcpy(z, &cz, sizeof(cz));
 	return 1;
 }
 
@@ -1385,6 +1315,8 @@ void CEllipticCurveDoubleMplJacobian6(CMpi *x2, CMpi *y2, CMpi *z2, CMpi *x, CMp
 }
 
 // p(x, y, z) = 2p(x, y, z)
+//by encrypt
+//SYX : need to speed up
 void CEllipticCurveDoubleMplJacobian3(CMpi *x, CMpi *y, CMpi *z)
 {
 	CMpl lltmp;
@@ -1545,9 +1477,11 @@ void CEllipticCurveDoubleMplJacobian3(CMpi *x, CMpi *y, CMpi *z)
 	return;
 }
 
-// By encrypt, sign, generatekey, setprivatekey
-// affine format
-// do mG
+/*
+* By encrypt, sign, generatekey, setprivatekey
+* affine format
+* do mG
+*/
 void CEllipticCurveMultiplyGByTable3(CMpi *x, CMpi *y, CMpi *m)
 {
 	CMpi z;
@@ -1564,20 +1498,26 @@ void CEllipticCurveMultiplyGByTable3(CMpi *x, CMpi *y, CMpi *m)
 	CEllipticCurveJacobian2Stand(x,y,&z);
 }
 
-// By sign_safe and generatekey_safe
-// affine format
-// p(x, y, z) = mG, G is fixed
+
+/*
+* By sign_safe and generatekey_safe
+* affine format
+* p(x, y, z) = mG, G is fixed
+* input cipher m, output plain x, y
+*/
 int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
-	CMpi z;
-	int iLenOfBits,i;
-	CMpi one;
+	MpiCipher cx, cy, cz;
+	CMpi one, pm;
 	CMpi (*g_tablePntG)[2] = NULL;
+
+	int iLenOfBits,i;
 	int id = smp_processor_id();
+
 #ifdef TSX_ENABLE
 	int tsxflag,try,status=0;
 	unsigned long flags;
 #endif
-	CMpiInit(&z);
+
 	CMpiInitN(&one,1);
 	switch(id)
 	{
@@ -1611,250 +1551,116 @@ int CEllipticCurveMultiplyGByTable3Safe(CMpi *x, CMpi *y, CMpi *m){
 	}
 
 #ifdef TSX_ENABLE
-	tsxflag = 0;
-	try = 0;
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-#ifdef PRINT_DBG
-			printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
-#endif
-
-		}
+	tsx_header("CEllipticCurveMultiplyGByTable3Safe import m", 1, tsxflag, flags, try, status);
 #endif
 
 #ifndef DEBUG
-		if(SM4DecryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)m, sizeof(CMpi), NULL, ECB, NULL)==0){
-			
+	if(SM4DecryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)&pm, sizeof(CMpi), NULL, ECB, NULL)==0){
 #ifdef TSX_ENABLE
-			local_irq_restore(flags);
-			put_cpu();
-			if(_xtest()){
-				_xend();
-			}
+		tsx_error_tailer(flags);
 #endif
-			return 0; 
-		}				
+		return 0; 
+	}				
 #endif
-		iLenOfBits = CMpiGetLengthInBits(m);
-		if(m->m_aiMyInt[0] & 0x01)
-		{
-			CMpiAssignCMpi(x,&(g_tablePntG[0][0]));
-			CMpiAssignCMpi(y,&(g_tablePntG[0][1]));
-			CMpiInitN(&z,1);
-		}
-		else
-		{
-			CMpiInitN(x,1);
-			CMpiInitN(y,1);
-			CMpiInitN(&z,0);
-		}
-#ifndef DEBUG
-		if((SM4EncryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)m, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4EncryptWithMode((BYTE *)x, sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4EncryptWithMode((BYTE *)y, sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4EncryptWithMode((BYTE *)(&z), sizeof(CMpi),(BYTE *)(&z), sizeof(CMpi), NULL, ECB, NULL)==0)
-			)
-		{
-#ifdef TSX_ENABLE
-			local_irq_restore(flags);
-			put_cpu();
-			if(_xtest()){
-				_xend();
-			}
-#endif
-
-			return 0; 
-		}				
-#endif
-
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
+	iLenOfBits = CMpiGetLengthInBits(&pm);
+	if(pm.m_aiMyInt[0] & 0x01)
+	{
+		CMpiAssignCMpi(&(cx.a),&(g_tablePntG[0][0]));
+		CMpiAssignCMpi(&(cy.a),&(g_tablePntG[0][1]));
+		CMpiInitN(&(cz.a),1);
 	}
+	else
+	{
+		CMpiInitN(&(cx.a),1);
+		CMpiInitN(&(cy.a),1);
+		CMpiInitN(&(cz.a),0);
+	}
+#ifndef DEBUG
+	memset(&pm, 0, sizeof(CMpi));
+	if( (SM4EncryptWithMode((BYTE *)&(cx.a), sizeof(CMpi),(BYTE *)&(cx.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+		|| (SM4EncryptWithMode((BYTE *)&(cy.a), sizeof(CMpi),(BYTE *)&(cy.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+		|| (SM4EncryptWithMode((BYTE *)&(cz.a), sizeof(CMpi),(BYTE *)&(cz.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+		)
+	{
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0; 
+	}				
+#endif
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
 #endif
 	
 	for (i = 1; i< iLenOfBits; i++)
 	//for (i = 1; i< 16; i++)
 	{
 #ifdef TSX_ENABLE
-		tsxflag = 0;
-		try = 0;
-		while(!tsxflag ){
-			get_cpu();
-			local_irq_save(flags);
-			while(1){
-				if(++try == TSX_MAX_TIMES){
-					local_irq_restore(flags);
-					put_cpu();
-					if(_xtest()){
-						_xend();
-					}
-					return 0;
-				}	
-				status = _xbegin();
-				if (status == _XBEGIN_STARTED)
-					break;
-#ifdef PRINT_DBG
-				if(try == TSX_MAX_TIMES-1)
-					printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
-#endif
-			}
+		tsx_header("CEllipticCurveMultiplyGByTable3Safe group add", i, tsxflag, flags, try, status);
 #endif
 
 #ifndef DEBUG
-			if((SM4DecryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)m, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4DecryptWithMode((BYTE *)x, sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4DecryptWithMode((BYTE *)y, sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4DecryptWithMode((BYTE *)(&z), sizeof(CMpi),(BYTE *)(&z), sizeof(CMpi), NULL, ECB, NULL)==0)
-				)
-			{
-#ifdef TSX_ENABLE
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-#endif
-				return 0; 
-			}				
-#endif
-
-
-			if (0x01 & (m->m_aiMyInt[i >> 5] >> (i & 0x1f)))
-			{//i >> 5 equal to i/32 to determine which int, i&0x1f to determine which bit, 0x01 & * to determine whether the bit is 0 or 1+
-				CEllipticCurveAddMplJacobian6(x,y,&z,&(g_tablePntG[i][0]),&(g_tablePntG[i][1]),&one);
-			}
-
-#ifndef DEBUG
-			if((SM4EncryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)m, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4EncryptWithMode((BYTE *)x, sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4EncryptWithMode((BYTE *)y, sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
-				|| (SM4EncryptWithMode((BYTE *)(&z), sizeof(CMpi),(BYTE *)(&z), sizeof(CMpi), NULL, ECB, NULL)==0)
-				)
-			{
-
-#ifdef TSX_ENABLE
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-#endif
-
-				return 0; 
-			}				
-#endif
-
-#ifdef TSX_ENABLE
-			tsxflag = 1;
-			if(_xtest()){
-				_xend();
-			}
-			local_irq_restore(flags);
-			put_cpu();
-			if(!tsxflag){/////wait for a while///////////////////////
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(10);
-			}
-		}
-#endif
-	}
-
-
-#ifdef TSX_ENABLE
-	tsxflag = 0;
-	try = 0;
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-#ifdef PRINT_DUB
-			printk("DEBUG: CEllipticCurveMultiplyGByTable3Safe Transaction final %d aborted  %d times with status %d %d\n",i+1, try,status,_XABORT_CAPACITY);
-#endif
-		}
-#endif
-
-#ifndef DEBUG
-		if((SM4DecryptWithMode((BYTE *)x, sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4DecryptWithMode((BYTE *)y, sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4DecryptWithMode((BYTE *)(&z), sizeof(CMpi),(BYTE *)(&z), sizeof(CMpi), NULL, ECB, NULL)==0))
+		if((SM4DecryptWithMode((BYTE *)m, sizeof(CMpi),(BYTE *)&pm, sizeof(CMpi), NULL, ECB, NULL)==0)
+			|| (SM4DecryptWithMode((BYTE *)&(cx.a), sizeof(CMpi),(BYTE *)&(cx.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			|| (SM4DecryptWithMode((BYTE *)&(cy.a), sizeof(CMpi),(BYTE *)&(cy.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			|| (SM4DecryptWithMode((BYTE *)&(cz.a), sizeof(CMpi),(BYTE *)&(cz.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			)
 		{
 #ifdef TSX_ENABLE
-			local_irq_restore(flags);
-			put_cpu();
-			if(_xtest()){
-				_xend();
-			}
+			tsx_error_tailer(flags);
 #endif
-
 			return 0; 
 		}				
 #endif
-		CEllipticCurveJacobian2Stand(x,y,&z);
+
+
+		if (0x01 & (pm.m_aiMyInt[i >> 5] >> (i & 0x1f)))
+		{//i >> 5 equal to i/32 to determine which int, i&0x1f to determine which bit, 0x01 & * to determine whether the bit is 0 or 1+
+			CEllipticCurveAddMplJacobian6(&(cx.a), &(cy.a), &(cz.a), &(g_tablePntG[i][0]), &(g_tablePntG[i][1]), &one);
+		}
+
 #ifndef DEBUG
-		if((SM4EncryptWithMode((BYTE *)x, sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4EncryptWithMode((BYTE *)y, sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
-			|| (SM4EncryptWithMode((BYTE *)(&z), sizeof(CMpi),(BYTE *)(&z), sizeof(CMpi), NULL, ECB, NULL)==0))
+		memset(&pm, 0, sizeof(CMpi));
+		if( (SM4EncryptWithMode((BYTE *)&(cx.a), sizeof(CMpi),(BYTE *)&(cx.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			|| (SM4EncryptWithMode((BYTE *)&(cy.a), sizeof(CMpi),(BYTE *)&(cy.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			|| (SM4EncryptWithMode((BYTE *)&(cz.a), sizeof(CMpi),(BYTE *)&(cz.a), sizeof(CMpi), NULL, ECB, NULL)==0)
+			)
 		{
 #ifdef TSX_ENABLE
-			local_irq_restore(flags);
-			put_cpu();
-			if(_xtest()){
-				_xend();
-			}
+			tsx_error_tailer(flags);
 #endif
 			return 0; 
 		}				
 #endif
 
 #ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
+		tsx_normal_tailer(tsxflag, flags);
+#endif
 	}
-	return tsxflag;
-#else
+
+#ifdef TSX_ENABLE
+	tsx_header("CEllipticCurveMultiplyGByTable3Safe final", i, tsxflag, flags, try, status);
+#endif
+
+#ifndef DEBUG
+	if((SM4DecryptWithMode((BYTE *)&(cx.a), sizeof(CMpi),(BYTE *)x, sizeof(CMpi), NULL, ECB, NULL)==0)
+		|| (SM4DecryptWithMode((BYTE *)&(cy.a), sizeof(CMpi),(BYTE *)y, sizeof(CMpi), NULL, ECB, NULL)==0)
+		|| (SM4DecryptWithMode((BYTE *)&(cz.a), sizeof(CMpi),(BYTE *)&(cz.a), sizeof(CMpi), NULL, ECB, NULL)==0))
+	{
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0; 
+	}				
+#endif
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+
+	CEllipticCurveJacobian2Stand(x,y,&(cz.a));
 	return 1;
-#endif
 }
 
 // By verify and table3
@@ -1926,7 +1732,7 @@ void CEllipticCurveMultiplyGByTable4(CMpi *x, CMpi *y, CMpi *z, CMpi *m)
 }
 
 
-// Jacobian format
+// Jacobian format, by sign
 // p(x, y, z) = p(x, y, z) + p(mx, my, mz) 
 void CEllipticCurveAddMplJacobian6(CMpi *x, CMpi *y, CMpi *z, CMpi *mx, CMpi *my, CMpi *mz)
 {
@@ -2107,6 +1913,7 @@ void CEllipticCurveAddMplJacobian6(CMpi *x, CMpi *y, CMpi *z, CMpi *mx, CMpi *my
 }
 
 //corresponding to the  AddMplJacobian
+//by encrypt
 void CEllipticCurveAddMplJacobian6New(CMpi *x, CMpi *y, CMpi *z, CMpi *mx, CMpi *my, CMpi *mz)
 {
 	CMpl lltmp;
@@ -2329,6 +2136,8 @@ int PubHashUserId(CECCPublicKey *t, unsigned char *pbOut, unsigned char *pUserNa
 	if (!pUserName)
 		iLenOfName = 0;
 
+	// printinfohex("user", pUserName, iLenOfName);
+
 	ENTL[0] = (unsigned char)(iLenOfName >> 5);
 	ENTL[1] = (unsigned char)(iLenOfName << 3);
 	HashInit(&hashState, ENTL, 2);
@@ -2336,16 +2145,22 @@ int PubHashUserId(CECCPublicKey *t, unsigned char *pbOut, unsigned char *pUserNa
 		HashPending(&hashState, pUserName, iLenOfName);
 	
 	CMpiExport(g_paramA,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("A", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(g_paramB,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("B", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(g_PntGx,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Gx", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(g_PntGy,bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Gy", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&(t->m_pntPx),bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Px", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 	CMpiExport(&(t->m_pntPy),bufPnt,DCS_ECC_KEY_LENGTH);
+	// printinfohex("Py", bufPnt, DCS_ECC_KEY_LENGTH);
 	HashPending(&hashState, bufPnt, DCS_ECC_KEY_LENGTH);
 
 	HashFinal(pbOut,&hashState);
@@ -2393,6 +2208,66 @@ int PriHashUserId(CECCPrivateKey *t, unsigned char *pbOut, unsigned char *pUserN
 	HashFinal(pbOut,&hashState);
 
 	return HASH_256;
+}
+
+int ImportSM2Secert(BYTE * d, CMpi * paramD, BYTE * IV){
+
+	BYTE buff[32];
+#ifdef TSX_ENABLE
+	unsigned long flags;
+	int status,tsxflag = 0;
+	int try = 0;
+#endif
+
+#ifdef TSX_ENABLE
+	tsx_header("ImportSecert import d", 1, tsxflag, flags, try, status);
+#endif
+
+	SM4DecryptWithMode(d, 32, buff, 32, NULL, ECB, NULL);
+	CMpiInport(paramD, buff, 32);
+	SM4EncryptWithMode((BYTE *)paramD, sizeof(CMpi), (BYTE *)paramD, 0, IV, ECB, NULL);
+	
+	memset(buff, 0, sizeof(buff));
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+	return 1;
+}
+
+int ImportCheckSM2Secert(BYTE * d, int lend, CMpi * paramD, CMpi * Modulus, BYTE * IV){
+
+	BYTE buff[lend + 16];
+#ifdef TSX_ENABLE
+	unsigned long flags;
+	int status,tsxflag = 0;
+	int try = 0;
+#endif
+
+#ifdef TSX_ENABLE
+	tsx_header("ImportCheckSM2Secert import random", 1, tsxflag, flags, try, status);
+#endif
+
+	SM4DecryptWithMode(d, lend, buff, lend, NULL, ECB, NULL);
+	
+	CMpiInport(paramD, buff, lend);
+	while(CMpiBigger(paramD, Modulus) == 1)
+	{
+		CMpiSubAssign(paramD, Modulus);
+	}
+	if( (CMpiEqualN(paramD,0) == 1) || (CMpiEqualCMpi(paramD, Modulus) == 1) ){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;	// error
+	}
+
+	SM4EncryptWithMode((BYTE *)paramD, sizeof(CMpi), (BYTE *)paramD, 0, IV, ECB, NULL);
+	memset(buff, 0, sizeof(buff));
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+	return 1;
 }
 
 int Verify(CECCPublicKey *pk,unsigned char *pDigest, int iLenOfDigest, unsigned char *pSig, int iLenOfSig)
@@ -2589,11 +2464,14 @@ int VerifyMessage(CECCPublicKey *pk, unsigned char *pMsg, int iLenOfMsg, unsigne
 	unsigned char digest[HASH_256];
 
 	PubHashUserId(pk,hashResult, pUserName, iLenOfUserName);
+	// printinfohex("ID", hashResult, HASH_256);
 
 	// the 2nd hash
 	HashInit(&hashState, hashResult, HASH_256);
 	HashPending(&hashState, pMsg, iLenOfMsg);
 	HashFinal(digest, &hashState);
+	// printinfohex("msgdeg", digest, HASH_256);
+	
 	return Verify(pk, digest, HASH_256, pSig, iLenOfSig);
 }
 
@@ -2608,12 +2486,7 @@ int SetPublicKey(CECCPublicKey *pk, CMpi *paramPx,  CMpi *paramPy)
 
 int GenerateKeySafe(CECCPrivateKey *sk,  unsigned char *pRandomUser,int iLenOfRandom)
 {
-#ifdef TSX_ENABLE
-	int tsxflag = 0;//0 for TSX abort, 1 for TSX success
-	int status,try = 0;
-	unsigned long flags;
-#endif
-
+	int ret;
 	CMpi (*g_tablePntG)[2];
 
 	CModulus *g_paramFieldP = NULL;
@@ -2652,93 +2525,19 @@ int GenerateKeySafe(CECCPrivateKey *sk,  unsigned char *pRandomUser,int iLenOfRa
 			break;
 	}
 
-	if(pRandomUser == NULL)
+	if(pRandomUser == NULL || iLenOfRandom > CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)))
 		return 0;
 
-#ifdef TSX_ENABLE
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-#ifdef PRINT_DBG
-			printk("DEBUG: GenerateKeySafe Transaction 1 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
-#endif
-		}
-#endif
+	ret = ImportCheckSM2Secert(pRandomUser, iLenOfRandom, &(sk->m_paramD), &(g_paramN->m_oModulus), NULL);
 
-		if (pRandomUser)
-		{
-			if (iLenOfRandom > CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)))
-			{
-#ifdef TSX_ENABLE
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-#endif
-				return 0;	// error
-			}
-#ifndef DEBUG
-			if(SM4DecryptWithMode(pRandomUser, iLenOfRandom, pRandomUser, iLenOfRandom, NULL, ECB, NULL)==0)
-				return 0; // the input d is encrypted or generated from the RNG (we use the master key to ensure the SM2 private key never leaked)
-#endif
-			CMpiInport(&(sk->m_paramD), pRandomUser, iLenOfRandom);
-			while(CMpiNotBigger(&(sk->m_paramD), &(g_paramN->m_oModulus)) ==0)
-			{
-				CMpiSubAssign(&(sk->m_paramD), &(g_paramN->m_oModulus));
-			}
-			if(CMpiEqualN(&(sk->m_paramD),0) == 1){
-#ifdef TSX_ENABLE
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-#endif
-				return 0;	// error
-			}
-#ifndef DEBUG
-			if(SM4EncryptWithMode(pRandomUser, iLenOfRandom,pRandomUser, iLenOfRandom, NULL, ECB, NULL)==0)
-				return 0; 
-			if(SM4EncryptWithMode((BYTE *)(&(sk->m_paramD)), sizeof(CMpi),(BYTE *)(&(sk->m_paramD)), sizeof(CMpi), NULL, ECB, NULL)==0)
-				return 0; 
-#endif
-		}
+	if(ret <=0)
+		return ret;
 
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
-	}
-#endif
+	if(CEllipticCurveMultiplyGByTable3Safe(&(sk->m_pntPx),&(sk->m_pntPy),&(sk->m_paramD))==0)
+		return 0;
+	if(CMpiEqualN(&(sk->m_pntPy),0)==1)
+		return 0;
 
-	while (1)
-	{
-		if(CEllipticCurveMultiplyGByTable3Safe(&(sk->m_pntPx),&(sk->m_pntPy),&(sk->m_paramD))==0)
-			return 0;
-		if(CMpiEqualN(&(sk->m_pntPy),0)==1)
-			return 0;
-		break;
-	}
 	return 1;		// ok
 }
 
@@ -2821,194 +2620,216 @@ int SignSafe(CECCPrivateKey *sk,unsigned char *pOut, unsigned char *pIn, int iLe
 	unsigned long flags;
 #endif
 
-	CMpi rnd;
-	CMpi x;
+	CMpi rnd, pD;
+	CMpi x, s;
 	CMpi tmp;
-	CMpi s;
-	CMpl lltmp;
-	CMpl cmpltemp; 
+	CMpl lltmp, cmpltemp; 
 
 	CModulus *g_paramFieldP = NULL;
 	CModulus *g_paramN = NULL;
+	
+
 	int id = smp_processor_id();
+
 	FindGParamN(id,&g_paramN);
 	FindGParamP(id,&g_paramFieldP);
-	if (!pRnd)
+	if(pRnd == NULL || iLenOfRnd > CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)))
 		return 0;
+
 	CMpiInit(&rnd);
 	CMpiInit(&x);  CMpiInit(&tmp);
 	CMplInit(&lltmp); CMplInit(&cmpltemp);
 	CMpiInit(&s);
 
-#ifdef TSX_ENABLE
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-		}
-#endif
-
-		if(SM4DecryptWithMode((BYTE *)pRnd,iLenOfRnd,(BYTE *)pRnd,iLenOfRnd,NULL,ECB,NULL)==0){//pRnd is obtained from memory, we use another one instead
-			return 0;
-		}
-
-		if(CMpiInport(&rnd,pRnd, iLenOfRnd)==0)
-		{
-			return 0;
-		}
-
-		memset(pRnd,0,iLenOfRnd); //cleanup
-		while(CMpiBigger(&rnd, &(g_paramN->m_oModulus))==1)
-			CMpiSubAssign(&rnd,&(g_paramN->m_oModulus));
-		if(CMpiEqualN(&rnd,0) == 1)
-		{
-			return 0;
-		}
-		if(CMpiEqualCMpi(&rnd, &(g_paramN->m_oModulus)) == 1)
-		{
-			return 0;
-		}
-		if(SM4EncryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
-	}
-	if(!tsxflag)
-		return 0;
-#endif
+	iRetLen = ImportCheckSM2Secert(pRnd, iLenOfRnd, &rnd, &(g_paramN->m_oModulus), NULL);
+	if(iRetLen <= 0)
+		return iRetLen;
 	
 	if(CEllipticCurveMultiplyGByTable3Safe(&x, &tmp, &rnd) != 1)
 	{
 		return 0;
 	}
 
-#ifdef TSX_ENABLE
-	tsxflag = 0;
-	try = 0;
-
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-#ifdef PRINT_DBG
-			printk("DEBUG: Transaction 2 aborted  %d times with status %d %d\n",try,status,_XABORT_CAPACITY);
-#endif
-		}
-#endif
-
-		if(SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(sk->m_paramD),sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-		if(SM4DecryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-		if(SM4DecryptWithMode((BYTE *)&x,sizeof(CMpi),(BYTE *)&x,sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-		if(SM4DecryptWithMode((BYTE *)&tmp,sizeof(CMpi),(BYTE *)&tmp,sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-
-		while(1 ){
-			if(CMpiInport(&tmp,pIn,iLen) == 0)
-			{
-				return 0;
-			}
-			
-			CMplAssignCMpi(&lltmp,&x);
-			CMplAssignCMpi(&cmpltemp,&tmp);
-			CMplAddAssign(&lltmp,&cmpltemp);
-			CMplModAssign(&x,&lltmp,&(g_paramN->m_oModulus));
-			if(CMpiEqualN(&x,0) == 1)
-			{
-				return 0;
-			}
-		
-			CMpiAdd(&s,&x,&rnd);
-			if(CMpiEqualCMpi(&(g_paramN->m_oModulus),&s) == 1)
-			{
-				return 0;
-			}
-
-			CMpiMultiByCMpi(&lltmp,&x,&(sk->m_paramD));
-			CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));
-			CMpiSubAssign(&rnd,&s);
-			while(CMpiIsNegative(&rnd)==1)
-			{
-				CMpiAddAssign(&rnd,&(g_paramN->m_oModulus));
-			}
-
-			CMpiInitN(&tmp,1);
-			CMpiAddAssign(&tmp, &(sk->m_paramD));
-			CModulusBinaryInverse(&s,g_paramN,&tmp);
-			CMpiMultiByCMpi(&lltmp,&s,&rnd);
-			CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));
-			if(CMpiEqualN(&s,0)==0)
-				break;
-			else
-			{
-				return 0;
-			}
-		}
-		iRetLen = CMpiExport(&x, pOut, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
-		iRetLen += CMpiExport(&s, pOut+iRetLen, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
-
-		if(SM4EncryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(sk->m_paramD),sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-		memset(&rnd,0,sizeof(CMpi));
-		memset(&x,0,sizeof(CMpi));
-		memset(&tmp,0,sizeof(CMpi));
-
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
-	}
-#endif
-
-	if(iRetLen == 0)
+	if(CMpiInport(&tmp,pIn,iLen) == 0)
+	{
 		return 0;
+	}
+	
+	CMplAssignCMpi(&lltmp,&x);
+	CMplAssignCMpi(&cmpltemp,&tmp);
+	CMplAddAssign(&lltmp,&cmpltemp);
+	CMplModAssign(&x,&lltmp,&(g_paramN->m_oModulus));		//x is first part of sign
+	if(CMpiEqualN(&x,0) == 1)	//check x!=0
+	{
+		return 0;
+	}
+
+	CMpiInitN(&tmp,1);
+
+/**************************** tsx Inverse before ******************************/
+	// this trans is to compute the (1+d)^{-1}
+#ifdef TSX_ENABLE
+	tsx_header("SignSafe end compute", 2, tsxflag, flags, try, status);
+#endif
+
+	if(SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(pD),sizeof(CMpi),NULL,ECB,NULL)==0){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	// showcmpi("D", &pD);
+	// showcmpi("rnd", &rnd);
+
+	CMpiAddAssign(&pD, &tmp);
+	CModulusBinaryInverse(&s,g_paramN,&pD);	//s = (1+d)^{-1}, SYX: maybe slow
+
+	memset(&pD, 0, sizeof(CMpi));
+	if(SM4EncryptWithMode((BYTE *)&s,sizeof(CMpi),(BYTE *)&s,sizeof(CMpi),NULL,ECB,NULL)==0){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+
+#ifdef TSX_ENABLE
+	tsx_header("SignSafe end compute", 3, tsxflag, flags, try, status);
+#endif
+
+	if((SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(pD),sizeof(CMpi),NULL,ECB,NULL)==0)
+		|| (SM4DecryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0) ){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+
+	CMpiAdd(&tmp,&x,&rnd);		
+	if(CMpiEqualCMpi(&(g_paramN->m_oModulus),&tmp) == 1)	//check x+r != n
+	{
+		memset(&pD, 0, sizeof(pD));	//rnd need to be clean? may not
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	CMpiMultiByCMpi(&lltmp,&x,&(pD));
+	CMplModAssign(&pD,&lltmp,&(g_paramN->m_oModulus));
+	CMpiSubAssign(&rnd,&pD);		
+	while(CMpiIsNegative(&rnd)==1)		//rnd = (rnd - xd) % n
+	{
+		CMpiAddAssign(&rnd,&(g_paramN->m_oModulus));
+	}
+
+	if(SM4DecryptWithMode((BYTE *)&s,sizeof(CMpi),(BYTE *)&s,sizeof(CMpi),NULL,ECB,NULL)==0)
+	{
+		memset(&pD, 0, sizeof(pD));
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	CMpiMultiByCMpi(&lltmp,&s,&rnd);			//lltmp = s * rnd
+	CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));		//tmp, lltmp need to be clean
+
+	memset(&pD, 0, sizeof(pD));
+	memset(&rnd, 0, sizeof(CMpi));
+	memset(&lltmp, 0, sizeof(CMpl));
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+//*/
+
+/**************************** tsx Inverse after ****************************/
+/*
+	//this trans is to compute (rnd - xd) % n
+#ifdef TSX_ENABLE
+	tsx_header("SignSafe end compute", 2, tsxflag, flags, try, status);
+#endif
+
+	if((SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(pD),sizeof(CMpi),NULL,ECB,NULL)==0)
+		|| (SM4DecryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0)){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	
+	CMpiAdd(&s,&x,&rnd);		
+	if(CMpiEqualCMpi(&(g_paramN->m_oModulus),&s) == 1)	//check x+r != n
+	{
+		memset(&pD, 0, sizeof(pD));	//s need to be clean?
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	CMpiMultiByCMpi(&lltmp,&x,&(pD));
+	CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));
+	CMpiSubAssign(&rnd,&s);		
+	while(CMpiIsNegative(&rnd)==1)		//rnd = (rnd - xd) % n
+	{
+		CMpiAddAssign(&rnd,&(g_paramN->m_oModulus));
+	}
+
+	memset(&pD, 0, sizeof(pD));
+	if(SM4EncryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+
+
+	CMpiInitN(&tmp,1);
+
+	// this trans is to compute the (1+d)^{-1}
+#ifdef TSX_ENABLE
+	tsx_header("SignSafe end compute", 3, tsxflag, flags, try, status);
+#endif
+
+	if((SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(pD),sizeof(CMpi),NULL,ECB,NULL)==0)
+	|| (SM4DecryptWithMode((BYTE *)&rnd,sizeof(CMpi),(BYTE *)&rnd,sizeof(CMpi),NULL,ECB,NULL)==0)){
+#ifdef TSX_ENABLE
+		tsx_error_tailer(flags);
+#endif
+		return 0;
+	}
+	// showcmpi("D", &pD);
+	// showcmpi("rnd", &rnd);
+
+	CMpiAddAssign(&pD, &tmp);
+	CModulusBinaryInverse(&s,g_paramN,&pD);	//s = (1+d)^{-1}, SYX: maybe slow
+	CMpiMultiByCMpi(&lltmp,&s,&rnd);			//lltmp = s * rnd
+	CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));		//tmp, lltmp need to be clean
+
+
+	memset(&pD, 0, sizeof(CMpi)); //cleanup
+	memset(&rnd, 0, sizeof(CMpi));
+	memset(&lltmp, 0, sizeof(CMpl));
+
+
+#ifdef TSX_ENABLE
+	tsx_normal_tailer(tsxflag, flags);
+#endif
+//*/
+
+	if(CMpiEqualN(&s,0))
+	{
+		return 0;
+	}
+
+	iRetLen = CMpiExport(&x, pOut, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
+	iRetLen += CMpiExport(&s, pOut+iRetLen, CMpiGetLengthInBytes(&(g_paramFieldP->m_oModulus)));
 	return iRetLen;
 }
 
@@ -3085,7 +2906,7 @@ int Sign(CECCPrivateKey *sk,unsigned char *pOut, unsigned char *pIn, int iLen, u
 
 		CMpiInitN(&tmp,1);
 		CMpiAddAssign(&tmp, &(sk->m_paramD));
-		CModulusBinaryInverse(&s,g_paramN,&tmp);
+		CModulusBinaryInverse(&s,g_paramN,&tmp);		
 		CMpiMultiByCMpi(&lltmp,&s,&rnd);
 		CMplModAssign(&s,&lltmp,&(g_paramN->m_oModulus));
 		if(CMpiEqualN(&s,0)==0)
@@ -3131,10 +2952,7 @@ int Decrypt(CECCPrivateKey *sk, unsigned char *pbCipher1, int iLenOfCipher1, uns
 
 int DecryptSafe(CECCPrivateKey *sk, unsigned char *pbCipher1, int iLenOfCipher1, unsigned char *pbX2, unsigned char *pbY2)
 {
-	CMpi x;
-	CMpi y;
-	CMpi x2;
-	CMpi y2;
+	CMpi x, y;
 	CModulus *g_paramFieldP = NULL;
 	int id = smp_processor_id();
 	FindGParamP(id,&g_paramFieldP);
@@ -3144,10 +2962,9 @@ int DecryptSafe(CECCPrivateKey *sk, unsigned char *pbCipher1, int iLenOfCipher1,
 	{
 		return 0;		// error
 	}
-	CMpiInit(&x2); CMpiInit(&y2);
 
 	
-	if(CEllipticCurveMultiplyPubByTable5Safe(&x2,&y2, &(sk->m_paramD),&x,&y,pbX2,pbY2)==0)
+	if(CEllipticCurveMultiplyPubByTable5Safe(&(sk->m_paramD),&x,&y,pbX2,pbY2)<=0)
 	{
 		return 0;
 	}	
@@ -3177,63 +2994,15 @@ int SignMessageSafe(CECCPrivateKey *sk, unsigned char *pOut, unsigned char *pMsg
 	unsigned char hashResult[HASH_256];
 	unsigned char digest[HASH_256];
 	HASH_STATE hashState;
-	int ret = 0;
-#ifdef TSX_ENABLE
-	unsigned long flags;
-	int status,tsxflag = 0;
-	int try = 0;
-#endif
 
-#ifdef TSX_ENABLE
-	while(!tsxflag ){
-		get_cpu();
-		local_irq_save(flags);
-		while(1){
-			if(++try == TSX_MAX_TIMES){
-				local_irq_restore(flags);
-				put_cpu();
-				if(_xtest()){
-					_xend();
-				}
-				return 0;
-			}	
-			status = _xbegin();
-			if (status == _XBEGIN_STARTED)
-				break;
-		}
-#endif
+	PriHashUserId(sk,hashResult, pUserName, iLenOfUserName);
 
-		if(SM4DecryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(sk->m_paramD),sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
+	// the 2nd hash
+	HashInit(&hashState, hashResult, HASH_256);
+	HashPending(&hashState, pMsg, iLenOfMsg);
+	HashFinal(digest, &hashState);
 
-		PriHashUserId(sk,hashResult, pUserName, iLenOfUserName);		//SYX: move out of the tsx?
-
-		// the 2nd hash
-		HashInit(&hashState, hashResult, HASH_256);
-		HashPending(&hashState, pMsg, iLenOfMsg);
-		HashFinal(digest, &hashState);
-
-		if(SM4EncryptWithMode((BYTE *)&(sk->m_paramD),sizeof(CMpi),(BYTE *)&(sk->m_paramD),sizeof(CMpi),NULL,ECB,NULL)==0){
-			return 0;
-		}
-
-#ifdef TSX_ENABLE
-		tsxflag = 1;
-		if(_xtest()){
-			_xend();
-		}
-		local_irq_restore(flags);
-		put_cpu();
-		if(!tsxflag){/////wait for a while///////////////////////
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
-		}
-	}
-#endif
-
-	ret = SignSafe(sk,pOut, digest, HASH_256, pRnd, iLenOfRnd);
-	return ret;
+	return SignSafe(sk,pOut, digest, HASH_256, pRnd, iLenOfRnd);
 }
 
 
@@ -3337,6 +3106,7 @@ int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char 
 		for (i = 0; i < iLenOfOut; i++)
 			pbOut[i] ^= pbIn[iLenOfSecret+HASH_256+i];
 
+		// printk("%s\n", pbOut);
 		AuthenticateMsg(digest, secret, pbOut, iLenOfOut);
 		memset(secret,0,iLenOfSecret);
 		SM4EncryptWithMode(pbOut,iLenOfOut,pbOut,iLenOfOut,NULL,ECB,NULL); //SYX: need to encrypt?

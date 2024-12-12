@@ -1,11 +1,15 @@
-
 //-------------"Defines"-------------
-#define ERR_COMMUNICATION		-1	///< Return error check for read and write to the TPM.
-#define PRINT_RESPONSE_WITHOUT_HEADER		12	///< Prints the response buffer from byte 12.
-static const unsigned char tpm2_getrandom[] = {
-	0x80, 0x01,			// TPM_ST_NO_SESSIONS
-	0x00, 0x00, 0x00, 0x0C,		// commandSize
-	0x00, 0x00, 0x01, 0x7B,		// TPM_CC_GetRandom
-	0x00, 0x00			// bytesRequested (will be set later)
-};
+
+#define RAND_DEBUG
+
+#ifdef RAND_DEBUG
+	#define init_random() do{} while(0);
+#else 
+	void init_random(void);
+#endif
+
+/*
+ *generate the random through TPM
+ *success: the length of generated random, fail : 0
+ */
 int tpm_gen_random(int lenth, unsigned char *response);
