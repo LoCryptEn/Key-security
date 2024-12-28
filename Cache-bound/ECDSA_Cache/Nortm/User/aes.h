@@ -12,6 +12,6 @@ typedef unsigned char  uint8_t;
 typedef unsigned int   uint32_t;
 
 
-int AESEncryptWithMode(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength,unsigned char *IV, int mode, uint8_t *Key);
-int AESDecryptWithMode(uint8_t *Cipher, int CipherLength, uint8_t *Plain ,int PlainLength,unsigned char *IV, int mode, uint8_t *Key);
-
+int AESEncryptWithMode(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int hasIV, unsigned char *IV, int mode, uint8_t *Key);
+int AESDecryptWithMode(uint8_t *Cipher, int CipherLength, uint8_t *Plain ,int hasIV, unsigned char *IV, int mode, uint8_t *Key);
+void aes_cypher_128_test(void);

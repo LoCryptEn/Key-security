@@ -3,15 +3,10 @@
 
 #include "aes.h"
 
-//
-// Public Definitions
-//
 
-/* moved to rijndael.h */
+//SYX: we can move aes key expand outside the single block process to reuse expanded key
 
-//
-// Internal Definitions
-//
+/**************************************************INNER Interface*************************************************/
 
 /*
  * Encryption Rounds
@@ -366,244 +361,160 @@ int aes_decrypt(AES_CYPHER_T mode, uint8_t *plain, uint8_t *cipher, uint8_t *key
 }
 
 
-void AESPad(uint8_t *Plain, int PlainLength, uint8_t *in, int *inLength)
-{
+/**************************************************Padding*************************************************/
 
-    *inLength = PlainLength;
-    memcpy(in,Plain,*inLength);
+//PKCS 7 
+int PKCS7Pad(uint8_t *Plain, int PlainLength, uint8_t* in, int blocklength)
+{
+    int pad, inLength;
+    inLength = (PlainLength + blocklength)/ blocklength  * blocklength;
+    memcpy(in,Plain,PlainLength);
+    pad = inLength - PlainLength;
+    memset(in+PlainLength, pad, pad);
+    return inLength;
 }
 
-void AESUnPad(uint8_t *out, int outLength, uint8_t *Plain, int *PlainLength)
+//SYX : UnPad dont need to check integrity
+int PKCS7UnPad(uint8_t *out, int outLength, uint8_t *Plain, int blocklength)
 {
-
-    memcpy(Plain,out,*PlainLength);
-}
-
-
-// void printhex(unsigned char * output, int len)
-// {
-//     for(int i = 0; i < len; i++){
-// 		if (i == 32) {
-//             printf("\n");
-//         }
-//         printf("%02x ", output[i]);
-//     }
-//     printf("\n");
-// }
-
-
-int AESEncryptECB(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength, uint8_t *Key)
-{
-    uint8_t PlainAndPad[(PlainLength / 16 + 1) * 16];
-    int len,i;
-    len = (PlainLength / 16 + 1) * 16;
-
-    AESPad(Plain,PlainLength,PlainAndPad,&len);
-
-    for(i = 0;i < len / 16;i++)
+    int len;
+    if((unsigned int)out[outLength-1] <= blocklength)
     {
-        aes_encrypt(mode, PlainAndPad + i * 16, Cipher + i * 16, Key);
+        len = outLength - out[outLength-1];
+    } else {
+        len = outLength;
     }
-    CipherLength = len;
-    return CipherLength;
+    memcpy(Plain, out, len);
+    return len;
+}
+
+void xorArray(unsigned char *to, unsigned char *from, int len){
+	int i;
+	unsigned int *a = (unsigned int *)to;
+	unsigned int *b = (unsigned int *)from;
+	int len1 = len >> 2;
+	for(i=0; i<len1; ++i)
+		a[i] ^= b[i];
 }
 
 
-// int AESEncryptECB_Reg(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength, uint8_t *Key)
-// {
-//     uint8_t PlainAndPad[(PlainLength + 15)/ 16  * 16];
-//     int len,i;
-//     len = (PlainLength + 15)/ 16  * 16;
 
-//     AESPad(Plain,PlainLength,PlainAndPad,&len);
-//     for(i = 0;i < len / 16;i++)
-//     {
-//         if(Key==NULL)
-//             aes_enc_master(PlainAndPad+i*16, PlainAndPad+i*16, Cipher+i*16);
-//         else
-//             aes_enc(Key, PlainAndPad+i*16, Cipher+i*16);
-//     }
-//     CipherLength = len;
-//     return CipherLength;
-// }
-
-
-int AESEncryptCBC(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength,unsigned char *IV, uint8_t *Key)
+void AESEncryptECB(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, uint8_t *Key)
 {
-	unsigned char preBlock[16];
-	uint8_t PlainAndPad[(PlainLength + 15)/ 16  * 16];
-    int len,i,j;
-    len = (PlainLength + 15)/ 16  * 16;
-    memcpy(preBlock,IV,16);
-    AESPad(Plain,PlainLength,PlainAndPad,&len);
-
-    for(i = 0;i < len / 16;i++)
-    {
-		for (j = 0; j < 16; j++)
-            preBlock[j] = Plain[i*16 + j] ^ preBlock[j];
-
-        aes_encrypt(mode, preBlock, Cipher + i * 16, Key);
-		memcpy(preBlock,Cipher+i*16,16);
-    }
-    CipherLength = PlainLength;
-    return CipherLength;
-}
-
-
-// int AESEncryptCBC_Reg(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength,unsigned char *IV, uint8_t *Key)
-// {
-// 	unsigned char preBlock[16];
-// 	uint8_t PlainAndPad[(PlainLength + 15)/ 16  * 16];
-//     int len,i,j;
-//     len = (PlainLength + 15)/ 16  * 16;
-//     memcpy(preBlock,IV,16);
-//     AESPad(Plain,PlainLength,PlainAndPad,&len);
-
-//     for(i = 0;i < len / 16;i++)
-//     {
-// 		for (j = 0; j < 16; j++)
-//             preBlock[j] = Plain[i*16 + j] ^ preBlock[j];
-
-// 		if(Key==NULL)
-//             aes_enc_master(preBlock, preBlock, Cipher+i*16);
-//         else
-//             aes_enc(Key, preBlock, Cipher+i*16);
-// 		memcpy(preBlock,Cipher+i*16,16);
-//     }
-//     CipherLength = PlainLength;
-//     return CipherLength;
-// }
-
-int AESDecryptECB(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength, uint8_t *Key)
-{
-
-    uint8_t PlainAndPad[CipherLength];
     int i;
-
-    for(i = 0;i < CipherLength / 16;i++)
+    int blocklength = g_aes_key_bits[mode] >> 3;
+    for(i = 0; i < PlainLength / blocklength; i++)
     {
-        aes_decrypt(mode, PlainAndPad + i * 16, Cipher + i * 16, Key);
+        aes_encrypt(mode, Plain + i * blocklength, Cipher + i * blocklength, Key);
     }
-    AESUnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-
-    return PlainLength;
 }
 
-// int AESDecryptECB_Reg(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength, uint8_t *Key)
-// {
-//     uint8_t PlainAndPad[CipherLength];
-//     int i;
-
-//     for(i = 0;i < CipherLength / 16;i++)
-//     {
-//         if(Key==NULL)
-//             aes_dec_master(PlainAndPad+i*16, PlainAndPad+i*16, Cipher+i*16);
-//         else
-//             aes_dec(Key, PlainAndPad+i*16, Cipher+i*16);
-//     }
-
-//     SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-//     return PlainLength;
-// }
-
-
-int AESDecryptCBC(AES_CYPHER_T mode,uint8_t *Cipher, int CipherLength, uint8_t *Plain, int PlainLength, uint8_t *IV, uint8_t *Key)
+void AESEncryptCBC(AES_CYPHER_T mode, uint8_t *Plain, int PlainLength, uint8_t *Cipher, int hasIV, unsigned char *IV, uint8_t *Key)
 {
-	unsigned char preBlock[16];
-	uint8_t PlainAndPad[CipherLength];
-    int i,j;
-    memcpy(preBlock,IV,16);
+    int i;
+    int blocklength = g_aes_key_bits[mode] >> 3;
+    unsigned char preBlock[blocklength];
+    
+    memcpy(preBlock, IV, blocklength);
 
-    for(i = 0;i < CipherLength / 16;i++)
+    for(i = 0; i < PlainLength / blocklength; i++)
     {
-        aes_decrypt(mode, PlainAndPad + i * 16, Cipher + i * 16, Key);
-	    
-        for (j = 0; j < 16; j++)
-            PlainAndPad[i*16 + j] = PlainAndPad[i*16 + j] ^ preBlock[j];
-	    memcpy(preBlock,Cipher+i*16,16);     //prepare
+        xorArray(preBlock, Plain + i * blocklength, blocklength);
+        aes_encrypt(mode, preBlock, Cipher + i * blocklength, Key);
+		memcpy(preBlock, Cipher+i*blocklength, blocklength);
     }
-    AESUnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-    return PlainLength;
 }
 
-// int AESDecryptCBC_Reg(AES_CYPHER_T mode,uint8_t *Cipher, int CipherLength, uint8_t *Plain, int PlainLength, uint8_t *IV, uint8_t *Key)
-// {
-// 	unsigned char preBlock[16];
-// 	uint8_t PlainAndPad[CipherLength];
-//     int i,j;
-//     memcpy(preBlock,IV,16);
-
-//     for(i = 0;i < CipherLength / 16;i++)
-//     {
-//         if(Key==NULL)
-//             aes_dec_master(Cipher+i*16, Cipher+i*16, PlainAndPad+i*16);
-//         else
-//             aes_dec(Key, Cipher+i*16, PlainAndPad+i*16);
-	    
-//         for (j = 0; j < 16; j++)
-//             PlainAndPad[i*16 + j] = PlainAndPad[i*16 + j] ^ preBlock[j];
-// 	    memcpy(preBlock,Cipher+i*16,16);
-//     }
-//     AESUnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-//     return PlainLength;
-// }
-
-
-int AESEncryptWithMode(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int CipherLength,unsigned char *IV, int mode, uint8_t *Key)
+void AESDecryptECB(AES_CYPHER_T mode, uint8_t *Cipher, int CipherLength, uint8_t *Plain, uint8_t *Key)
 {
-    if(mode == ECB)
+    int i;
+    int blocklength = g_aes_key_bits[mode] >> 3;
+    for(i = 0;i < CipherLength / blocklength; i++)
     {
-    	return AESEncryptECB(AES_CYPHER_128,Plain,PlainLength,Cipher,CipherLength,Key);
-    	//return AESEncryptECB_Reg(Plain,PlainLength,Cipher,CipherLength,Key);
+        aes_decrypt(mode, Plain + i * blocklength, Cipher + i * blocklength, Key);
+    }
+}
+
+int AESDecryptCBC(AES_CYPHER_T mode,uint8_t *Cipher, int CipherLength, uint8_t *Plain, int hasIV, uint8_t *IV, uint8_t *Key)
+{
+    int i = 0, j = 0, loc = 0;
+    int blocklength = g_aes_key_bits[mode] >> 3;
+	unsigned char preBlock[blocklength*2];
+    
+    if(hasIV)
+        memcpy(preBlock, IV, blocklength);
+    else{
+        i = 1;
+        memcpy(preBlock, Cipher, blocklength);
+    }
+
+    for(;i < CipherLength / blocklength; i++, j++)
+    {
+        memcpy(preBlock + (loc^1)*blocklength, Cipher + i * blocklength, blocklength);
+        aes_decrypt(mode, Plain + j * blocklength, Cipher + i * blocklength, Key);
+        xorArray(Plain + j * blocklength , preBlock + loc*blocklength, blocklength);   
+        loc ^= 1;
+    }
+    return j*blocklength;
+}
+
+/**************************************************OUT Interface*************************************************/
+
+/*
+* this two function do not padding, only for PlainLength is Block*n
+*/
+int AESEncryptWithMode(uint8_t *Plain, int PlainLength, uint8_t *Cipher, int hasIV,unsigned char *IV, int mode, uint8_t *Key)
+{
+    int blocklength = g_aes_key_bits[AES_CYPHER_128] >> 3;
+    if(PlainLength % blocklength) //check Block, consider 192 bits, we need use %
+        return 0;
+    if(mode == ECB) {
+    	AESEncryptECB(AES_CYPHER_128, Plain, PlainLength, Cipher, Key);
     }    
-    else if(mode == CBC)
-    {
-        return AESEncryptCBC(AES_CYPHER_128,Plain,PlainLength,Cipher,CipherLength,IV,Key);
-    	//return AESEncryptCBC_Reg(Plain,PlainLength,Cipher,CipherLength,IV,Key);
+    else if((mode == CBC) && IV) {
+    	AESEncryptCBC(AES_CYPHER_128, Plain, PlainLength, Cipher, hasIV, IV, Key);
     }
     else
         return 0;
+    return PlainLength;
 }
-
-
-int AESDecryptWithMode(uint8_t *Cipher, int CipherLength, uint8_t *Plain, int PlainLength, unsigned char *IV, int mode, uint8_t *Key)
+int AESDecryptWithMode(uint8_t *Cipher, int CipherLength, uint8_t *Plain, int hasIV, unsigned char *IV, int mode, uint8_t *Key)
 {
-    if(mode == ECB){
-    	return AESDecryptECB(AES_CYPHER_128,Cipher,CipherLength,Plain,PlainLength,Key);
-    	//return AESDecrypt_Reg(AES_CYPHER_128,Cipher,CipherLength,Plain,PlainLength,Key);
-    }
-    else if(mode == CBC)
-    {
-        return AESDecryptCBC(AES_CYPHER_128,Cipher,CipherLength,Plain,PlainLength,IV,Key);
-    	//return AESDecryptCBC_Reg(Cipher,CipherLength,Plain,PlainLength,IV,Key);
+    int blocklength = g_aes_key_bits[AES_CYPHER_128] >> 3;
+    if(!CipherLength || (CipherLength % blocklength))   //check Block
+        return 0;
+    if(mode == ECB) {
+    	AESDecryptECB(AES_CYPHER_128, Cipher, CipherLength, Plain, Key);
+    } else if(mode == CBC) {
+    	CipherLength = AESDecryptCBC(AES_CYPHER_128, Cipher, CipherLength, Plain, hasIV, IV, Key);      //SYX: error and consider first block  as iv ??
     }
     else
         return 0;
+    return CipherLength;
 }
 
-void aes_cypher_128_test()
+void aes_cypher_128_test(void)
 {
-#if 1
-    uint8_t buf[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                      0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
-                      0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-                      0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
-    uint8_t key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-    uint8_t iv[16] = {0x01,0x09};
-    uint8_t c[32];
-#else
-    uint8_t buf[] = { 0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d,
-                      0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34 };
-    uint8_t key[] = { 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
-                      0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
-#endif
+    int i;
+    unsigned char key[20]= "0123456789abcdef", iv[20]= "0123456789abcdef";
+	unsigned char testp[1024];
+	char testm[1024] = "this is a message, we will test the ebc and cbc in different length, plain and cipher point to the same place\n";
+	int cipherlen, plainlen;
+	for(i=1; i< strlen(testm); i++)
+	{
+		if(i%16 == 0)
+		{
+            memcpy(testp, testm, strlen(testm));
+			cipherlen = AESEncryptWithMode(testp, i, testp, 0, NULL, ECB, key);
+			plainlen = AESDecryptWithMode(testp, cipherlen, testp, 0, NULL, ECB, key);
+			testp[plainlen] = 0;
+			printf("ECB no pad: %s\n", testp);
 
- //   aes_encrypt(AES_CYPHER_128, buf, sizeof(buf), key);
-    AESEncryptWithMode(buf,32,c,32,iv,CBC,key);
-    //AESEncryptCBC(AES_CYPHER_128,buf,32,c,32,iv,key);
-
-//    aes_decrypt(AES_CYPHER_128, buf, sizeof(buf), key);
-    //AESDecryptCBC(AES_CYPHER_128,buf,32,c,32,iv,key);
-    AESDecryptWithMode(c,32,buf,32,iv,CBC,key);
+            memcpy(testp, testm, strlen(testm));
+			cipherlen = AESEncryptWithMode(testp, i, testp, 1, iv, CBC, key);
+			plainlen = AESDecryptWithMode(testp, cipherlen, testp, 1, iv, CBC, key);
+			testp[plainlen] = 0;
+			printf("CBC no pad: %s\n", testp);
+		}
+	}
 }

@@ -78,7 +78,7 @@ aes_dec:
     push %rsi
     push %rdx
 
-    movupd (%rdi), %xmm0
+    movupd (%rdi), %xmm0        # mov key to xmm0
     movapd %xmm0, %xmm5
     pxor   %xmm2, %xmm2
 
@@ -124,10 +124,12 @@ aes_enc_master:
 
     mov %dr0, %r12
     mov %dr1, %r13
-    mov %r12, (%rsi)
-    mov %r13, 8(%rsi)
+    sub $16, %rsp
+    mov %r12, (%rsp)
+    mov %r13, 8(%rsp)
+    movupd (%rsp), %xmm0        # mov key to xmm0
+    add $16, %rsp
 
-	movupd (%rsi), %xmm0
     movapd %xmm0, %xmm5
     pxor   %xmm2, %xmm2
 
@@ -174,10 +176,12 @@ aes_dec_master:
 
     mov %dr0, %r12
     mov %dr1, %r13
-    mov %r12, (%rsi)
-    mov %r13, 8(%rsi)
+    sub $16, %rsp
+    mov %r12, (%rsp)
+    mov %r13, 8(%rsp)
+    movupd (%rsp), %xmm0        # mov key to xmm0
+    add $16, %rsp
 
-	movupd (%rsi), %xmm0
     movapd %xmm0, %xmm5
     pxor   %xmm2, %xmm2
 
