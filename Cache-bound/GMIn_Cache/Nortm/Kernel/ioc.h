@@ -125,7 +125,7 @@ typedef struct _SM2_Para{
 	uint8_t d[SM2_KEY_LEN];
 	uint8_t x[SM2_KEY_LEN];
 	uint8_t y[SM2_KEY_LEN];
-	uint8_t plain[SM2_MAX_PLAIN_LEN];
+	uint8_t plain[SM2_MAX_PLAIN_LEN+SM4_KEY_LEN];
 	uint8_t cipher[1+SM2_KEY_LEN*3+SM2_MAX_PLAIN_LEN];
 	unsigned char pin[PIN_LEN];
 }SM2_Para;

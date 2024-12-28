@@ -3109,7 +3109,7 @@ int DecryptMessageSafe(CECCPrivateKey *sk, unsigned char *pbOut,  unsigned char 
 		// printk("%s\n", pbOut);
 		AuthenticateMsg(digest, secret, pbOut, iLenOfOut);
 		memset(secret,0,iLenOfSecret);
-		SM4EncryptWithMode(pbOut,iLenOfOut,pbOut,iLenOfOut,NULL,ECB,NULL); //SYX: need to encrypt?
+		iLenOfOut = SM4EncryptWithModePad(pbOut,iLenOfOut,pbOut,iLenOfOut,NULL,ECB,NULL); //SYX: need to encrypt?
 
 #ifdef TSX_ENABLE
 		tsxflag = 1;

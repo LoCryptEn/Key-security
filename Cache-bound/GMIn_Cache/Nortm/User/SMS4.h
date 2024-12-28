@@ -13,5 +13,6 @@ typedef unsigned char BYTE;
 
 int SM4EncryptWithMode(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, int mode, BYTE *Key);
 int SM4DecryptWithMode(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength,unsigned char *IV, int mode, BYTE *Key);
+void sm4_cypher_128_test(void);
 
 #endif // SMS4_HEADER_FDA90FJA09H___FDA98SFHA____FD98ASFH__

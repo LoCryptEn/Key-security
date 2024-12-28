@@ -15,6 +15,7 @@ int SM4EncryptWithMode(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV, un
 int SM4DecryptWithMode(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, int mode, BYTE *Key);
 int SM4EncryptWithModePad(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV, unsigned char *IV, int mode, BYTE *Key);
 int SM4DecryptWithModePad(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, int mode, BYTE *Key);
+void sm4_cypher_128_test(void);
 
 
 #endif // SMS4_HEADER_FDA90FJA09H___FDA98SFHA____FD98ASFH__

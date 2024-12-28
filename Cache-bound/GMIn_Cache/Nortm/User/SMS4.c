@@ -4,8 +4,8 @@
 void Sms4ExtendKey(unsigned int *subkey, const unsigned char *key);
 void Sms4Encrypt(unsigned char *cipher, const unsigned char *plain, const unsigned int *subkey);
 void Sms4Decrypt(unsigned char *plain, const unsigned char *cipher, const unsigned int *subkey);
-void SM4UnPad(BYTE *out, int outLength, BYTE *Plain, int *PlainLength);
-void SM4Pad(BYTE *out, int outLength, BYTE *Plain, int *PlainLength);
+int PKCS7UnPad(BYTE *out, int outLength, BYTE *Plain);
+int PKCS7Pad(BYTE *Plain, int PlainLength, BYTE* in);
 unsigned int Sms4F(unsigned int w0, unsigned int w1, unsigned int w2, unsigned int w3, unsigned int rkey);
 unsigned int Sms4FinExtendedKey(unsigned int w0, unsigned int w1, unsigned int w2, unsigned int w3, unsigned int ck);
 
@@ -142,98 +142,193 @@ void xorArray(unsigned char *buf1,unsigned char *buf2,int len){
 
 }
 
-int  SM4Encrypt(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength, BYTE *Key)
+void SM4Encrypt(BYTE *Plain, int PlainLength, BYTE *Cipher, BYTE *Key)
 {
-    //BYTE PlainAndPad[(PlainLength / 16 + 1) * 16];
-    unsigned int subkey[SMS4_ROUND];
-    int len,i;
-    //len = (PlainLength / 16 + 1) * 16;
-    //SM4Pad(Plain,PlainLength,PlainAndPad,&len);
-    Sms4ExtendKey(subkey,Key);
-    for(i = 0;i < PlainLength / 16;i++)
-    {
-        Sms4Encrypt(Cipher + i * 16,Plain + i * 16,subkey);
-    }
-    CipherLength = len;
-    return CipherLength;
-}
-
-
-int SM4EncryptCBC(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, BYTE *Key)
-{
-	unsigned char preBlock[16];
-	//BYTE PlainAndPad[(PlainLength / 16 + 1) * 16];
-   	unsigned int subkey[SMS4_ROUND];
-    int i;
-    //len = (PlainLength / 16 + 1) * 16;
-    memcpy(preBlock,IV,16);
-    //SM4Pad(Plain,PlainLength,PlainAndPad,&len);
-    Sms4ExtendKey(subkey,Key);
-
-    for(i = 0;i < PlainLength / 16;i++)
-    {
-		xorArray(preBlock,Plain+i*16,16);
-		Sms4Encrypt(Cipher+i*16,preBlock,subkey);
-		memcpy(preBlock,Cipher+i*16,16);
-    }
-    CipherLength = PlainLength;
-    return CipherLength;
-}
-
-
-int SM4Decrypt(BYTE *Cipher, int CipherLength, BYTE *Plain ,int PlainLength, BYTE *Key)
-{
-    unsigned int subkey[SMS4_ROUND];
-    //BYTE PlainAndPad[CipherLength];
-    int i;
-    Sms4ExtendKey(subkey,Key);
-    for(i = 0;i < CipherLength / 16;i++)
-    {
-        Sms4Decrypt(Plain + i * 16,Cipher + i * 16,subkey);
-    }
-    //SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-     return PlainLength;
-}
-
-int SM4DecryptCBC(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLength, unsigned char *IV, BYTE *Key)
-{
-	unsigned char preBlock[16];
 	unsigned int subkey[SMS4_ROUND];
-	//BYTE PlainAndPad[CipherLength];
     int i;
-    memcpy(preBlock,IV,16);
-    Sms4ExtendKey(subkey,Key);
-    PlainLength = 0;
-    for(i = 0;i < CipherLength / 16;i++)
+	Sms4ExtendKey(subkey,Key);
+    for(i = 0;i < PlainLength / SMS4_BLOCK_LENGTH;i++)
     {
-        Sms4Decrypt(Plain+i*16,Cipher+i*16,subkey); //first decrypt
-        PlainLength += 16;
-	    xorArray(Plain+i*16,preBlock,16);  //xor with previous block
-	    memcpy(preBlock,Cipher+i*16,16);     //prepare
+		Sms4Encrypt(Cipher + i * SMS4_BLOCK_LENGTH,Plain + i * SMS4_BLOCK_LENGTH,subkey);
     }
-    //SM4UnPad(PlainAndPad,CipherLength,Plain,&PlainLength);
-    return PlainLength;
 }
 
-int SM4EncryptWithMode(BYTE *Plain, int PlainLength, BYTE *Cipher, int CipherLength,unsigned char *IV, int mode, BYTE *Key)
+void SM4EncryptCBC(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV, unsigned char *IV, BYTE *Key)
 {
-    if(mode == ECB)
+    unsigned char preBlock[SMS4_BLOCK_LENGTH];
+	unsigned int subkey[SMS4_ROUND];
+    int i;
+    
+	Sms4ExtendKey(subkey,Key);
+    memcpy(preBlock,IV,SMS4_BLOCK_LENGTH);
+    for(i = 0;i < PlainLength / SMS4_BLOCK_LENGTH;i++)
     {
-    	return SM4Encrypt(Plain,PlainLength,Cipher,CipherLength,Key);
-    }    
-    else if(mode == CBC)
-    {
-       return SM4EncryptCBC(Plain,PlainLength,Cipher,CipherLength,IV,Key);
+        xorArray(preBlock,Plain+i*SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
+		Sms4Encrypt(Cipher+i*SMS4_BLOCK_LENGTH,preBlock,subkey);
+        memcpy(preBlock,Cipher+i*SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
     }
 }
 
-int SM4DecryptWithMode(BYTE *Cipher, int CipherLength, BYTE *Plain, int PlainLength, unsigned char *IV, int mode, BYTE *Key)
+void SM4Decrypt(BYTE *Cipher, int CipherLength, BYTE *Plain, BYTE *Key)
 {
-    if(mode == ECB)
-    	return SM4Decrypt(Cipher,CipherLength,Plain,PlainLength,Key);
-    else if(mode == CBC)
+	unsigned int subkey[SMS4_ROUND];
+    int i;
+	Sms4ExtendKey(subkey,Key);
+    for(i = 0;i < CipherLength / SMS4_BLOCK_LENGTH;i++)
     {
-       return SM4DecryptCBC(Cipher,CipherLength,Plain,PlainLength,IV,Key);
+		Sms4Decrypt(Plain + i * SMS4_BLOCK_LENGTH,Cipher + i * SMS4_BLOCK_LENGTH,subkey);
     }
 }
 
+int SM4DecryptCBC(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, BYTE *Key)
+{
+	unsigned int subkey[SMS4_ROUND];
+    unsigned char preBlock[SMS4_BLOCK_LENGTH*2];
+    int i = 0 , j=0, loc = 0;
+    if(hasIV)
+        memcpy(preBlock,IV,SMS4_BLOCK_LENGTH);
+    else{
+        i = 1;
+        memcpy(preBlock, Cipher, SMS4_BLOCK_LENGTH);
+    }
+	Sms4ExtendKey(subkey,Key);
+    for(; i < CipherLength / SMS4_BLOCK_LENGTH; i++, j++)
+    {
+		memcpy(preBlock + (loc^1)*SMS4_BLOCK_LENGTH, Cipher + i * SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
+		Sms4Decrypt(Plain+j*SMS4_BLOCK_LENGTH,Cipher+i*SMS4_BLOCK_LENGTH,subkey); //first decrypt
+        xorArray(Plain+j*SMS4_BLOCK_LENGTH, preBlock + loc*SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
+        loc ^= 1;
+    }
+    return j*SMS4_BLOCK_LENGTH;
+}
+
+
+int SM4EncryptWithMode(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV,unsigned char *IV, int mode, BYTE *Key)
+{
+	if(PlainLength & (SMS4_BLOCK_LENGTH - 1)) //check Block
+        return 0;
+    if(mode == ECB) {
+    	SM4Encrypt(Plain,PlainLength,Cipher,Key);
+    } else if(mode == CBC) {
+       SM4EncryptCBC(Plain,PlainLength,Cipher,hasIV, IV,Key);
+    }
+	else	
+		return 0;
+	return PlainLength;
+}
+
+int SM4DecryptWithMode(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, int mode, BYTE *Key)
+{
+	if(!CipherLength || (CipherLength & (SMS4_BLOCK_LENGTH - 1)))   //check Block
+        return 0;
+    if(mode == ECB) {
+    	SM4Decrypt(Cipher,CipherLength,Plain,Key);
+	} else if(mode == CBC) {
+       SM4DecryptCBC(Cipher,CipherLength,Plain,hasIV, IV,Key);
+    } 
+	else
+        return 0;
+    return CipherLength;
+}
+
+//PKCS 7 
+int PKCS7Pad(BYTE *Plain, int PlainLength, BYTE* in)
+{
+    int pad, inLength;
+    inLength = (PlainLength + SMS4_BLOCK_LENGTH)/ SMS4_BLOCK_LENGTH  * SMS4_BLOCK_LENGTH;
+    memcpy(in,Plain,PlainLength);
+    pad = inLength - PlainLength;
+    memset(in+PlainLength, pad, pad);
+    return inLength;
+}
+
+//SYX : UnPad dont need to check integrity
+int PKCS7UnPad(BYTE *out, int outLength, BYTE *Plain)
+{
+    int len;
+    if((unsigned int)out[outLength-1] <= SMS4_BLOCK_LENGTH)
+    {
+        len = outLength - out[outLength-1];
+    } else {
+        len = outLength;
+    }
+    memcpy(Plain, out, len);
+    return len;
+}
+
+/*
+* this two function provide padding
+* need to check length?
+*/
+int SM4EncryptWithModePad(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV,unsigned char *IV, int mode, BYTE *Key)
+{
+    BYTE PlainAndPad[PlainLength+SMS4_BLOCK_LENGTH];
+    int len = PKCS7Pad(Plain,PlainLength,PlainAndPad);
+
+    if(mode == ECB) {
+    	SM4Encrypt(PlainAndPad,len,Cipher,Key);
+    } else if((mode == CBC) && IV) {
+    	SM4EncryptCBC(PlainAndPad,len,Cipher,hasIV,IV,Key);
+    }
+    else
+        len = 0;
+    memset(PlainAndPad, 0, len);
+    return len;
+}
+
+int SM4DecryptWithModePad(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, int mode, BYTE *Key)
+{
+    int len;
+    BYTE PlainAndPad[CipherLength];
+
+    if(!CipherLength || (CipherLength & (SMS4_BLOCK_LENGTH - 1)))   //check Block
+        return 0;
+    if(mode == ECB){
+    	SM4Decrypt(Cipher,CipherLength,PlainAndPad,Key);
+    }
+    else if(mode == CBC){
+    	CipherLength = SM4DecryptCBC(Cipher,CipherLength,PlainAndPad,hasIV,IV,Key);
+    }
+    else
+        return 0;
+    len = PKCS7UnPad(PlainAndPad,CipherLength,Plain); //SYX: error and unpad to zero ??
+    memset(PlainAndPad, 0, CipherLength);
+    return len;
+}
+
+
+void sm4_cypher_128_test(void)
+{
+	unsigned char key[20]= "0123456789abcdef", iv[20]= "0123456789abcdef";
+	unsigned char testp[1024];
+	char testm[1024] = "this is a message, we will test the ebc and cbc in different length, plain and cipher point to the same place\n";
+	int cipherlen, plainlen;
+	for(int i=1; i< strlen(testm); i++)
+	{
+		if(i%16 == 0)
+		{
+			memcpy(testp, testm, strlen(testm));
+			cipherlen = SM4EncryptWithMode(testp, i, testp, 0, NULL, ECB, key);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 0, NULL, ECB, key);
+			testp[plainlen] = 0;
+			printf("ECB no pad: %s\n", testp);
+
+			memcpy(testp, testm, strlen(testm));
+			cipherlen = SM4EncryptWithMode(testp, i, testp, 1, iv, CBC, key);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 1, iv, CBC, key);
+			testp[plainlen] = 0;
+			printf("CBC no pad: %s\n", testp);
+		}
+		memcpy(testp, testm, strlen(testm));
+		cipherlen = SM4EncryptWithModePad(testp, i, testp, 0, NULL, ECB, key);
+		plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 0, NULL, ECB, key);
+		testp[plainlen] = 0;
+		printf("ECB with pad: %s\n", testp);
+
+		memcpy(testp, testm, strlen(testm));
+		cipherlen = SM4EncryptWithModePad(testp, i, testp, 1, iv, CBC, key);
+		plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 1, iv, CBC, key);
+		testp[plainlen] = 0;
+		printf("CBC with pad: %s\n", testp);
+	}
+}

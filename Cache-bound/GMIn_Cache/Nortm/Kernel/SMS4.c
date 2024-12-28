@@ -13,7 +13,7 @@ int sm4_dec_master(BYTE *key, BYTE *input, BYTE *ouput);
 
 
 //PKCS 7 
-int SM4Pad(BYTE *Plain, int PlainLength, BYTE* in)
+int PKCS7Pad(BYTE *Plain, int PlainLength, BYTE* in)
 {
     int pad, inLength;
     inLength = (PlainLength + SMS4_BLOCK_LENGTH)/ SMS4_BLOCK_LENGTH  * SMS4_BLOCK_LENGTH;
@@ -24,10 +24,10 @@ int SM4Pad(BYTE *Plain, int PlainLength, BYTE* in)
 }
 
 //SYX : UnPad dont need to check integrity
-int SM4UnPad(BYTE *out, int outLength, BYTE *Plain)
+int PKCS7UnPad(BYTE *out, int outLength, BYTE *Plain)
 {
     int len;
-    if((unsigned int)out[outLength-1] <= 16)
+    if((unsigned int)out[outLength-1] <= SMS4_BLOCK_LENGTH)
     {
         len = outLength - out[outLength-1];
     } else {
@@ -94,8 +94,8 @@ void SM4Decrypt_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain, BYTE *Key)
 
 int SM4DecryptCBC_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, unsigned char *IV, BYTE *Key)
 {
-    unsigned char preBlock[SMS4_BLOCK_LENGTH];
-    int i = 0 , j=0;
+    int i = 0, j = 0, loc = 0;
+    unsigned char preBlock[SMS4_BLOCK_LENGTH*2];
     if(hasIV)
         memcpy(preBlock,IV,SMS4_BLOCK_LENGTH);
     else{
@@ -104,12 +104,13 @@ int SM4DecryptCBC_Reg(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, un
     }
     for(; i < CipherLength / SMS4_BLOCK_LENGTH; i++, j++)
     {
+        memcpy(preBlock + (loc^1)*SMS4_BLOCK_LENGTH, Cipher + i * SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
         if(Key==NULL)
             sm4_dec_master(NULL, Cipher+i*SMS4_BLOCK_LENGTH, Plain+j*SMS4_BLOCK_LENGTH);
         else
             sm4_dec(Key, Cipher+i*SMS4_BLOCK_LENGTH, Plain+j*SMS4_BLOCK_LENGTH);
-        xorArray(Plain+j*SMS4_BLOCK_LENGTH, preBlock, SMS4_BLOCK_LENGTH);
-        memcpy(preBlock, Cipher+i*SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
+        xorArray(Plain+j*SMS4_BLOCK_LENGTH, preBlock + loc*SMS4_BLOCK_LENGTH, SMS4_BLOCK_LENGTH);
+        loc ^= 1;
     }
     return j*SMS4_BLOCK_LENGTH;
 }
@@ -154,7 +155,7 @@ int SM4DecryptWithMode(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV, u
 int SM4EncryptWithModePad(BYTE *Plain, int PlainLength, BYTE *Cipher, int hasIV,unsigned char *IV, int mode, BYTE *Key)
 {
     BYTE PlainAndPad[PlainLength+SMS4_BLOCK_LENGTH];
-    int len = SM4Pad(Plain,PlainLength,PlainAndPad);
+    int len = PKCS7Pad(Plain,PlainLength,PlainAndPad);
 
     if(mode == ECB) {
     	SM4Encrypt_Reg(PlainAndPad,len,Cipher,Key);
@@ -182,7 +183,70 @@ int SM4DecryptWithModePad(BYTE *Cipher, int CipherLength, BYTE *Plain, int hasIV
     }
     else
         return 0;
-    len = SM4UnPad(PlainAndPad,CipherLength,Plain); //SYX: error and unpad to zero ??
+    len = PKCS7UnPad(PlainAndPad,CipherLength,Plain); //SYX: error and unpad to zero ??
     memset(PlainAndPad, 0, CipherLength);
     return len;
+}
+
+
+void sm4_cypher_128_test(void)
+{
+    int i;
+    unsigned char key[20]= "0123456789abcdef", iv[20]= "0123456789abcdef";
+	unsigned char testp[1024];
+	char testm[1024] = "this is a message, we will test the ebc and cbc in different length, plain and cipher point to the same place\n";
+	int cipherlen, plainlen;
+	for(i=1; i< strlen(testm); i++)
+	{
+		if(i%16 == 0)
+		{
+            memcpy(testp, testm, strlen(testm));
+			cipherlen = SM4EncryptWithMode(testp, i, testp, 0, NULL, ECB, key);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 0, NULL, ECB, key);
+			testp[plainlen] = 0;
+			printk("ECB no pad: %s\n", testp);
+
+            memcpy(testp, testm, strlen(testm));
+			cipherlen = SM4EncryptWithMode(testp, i, testp, 1, iv, CBC, key);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 1, iv, CBC, key);
+			testp[plainlen] = 0;
+			printk("CBC no pad: %s\n", testp);
+
+            memcpy(testp, testm, strlen(testm));
+            cipherlen = SM4EncryptWithMode(testp, i, testp, 0, NULL, ECB, NULL);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 0, NULL, ECB, NULL);
+			testp[plainlen] = 0;
+			printk("ECB no pad key in cpu: %s\n", testp);
+
+            memcpy(testp, testm, strlen(testm));
+			cipherlen = SM4EncryptWithMode(testp, i, testp, 1, iv, CBC, NULL);
+			plainlen = SM4DecryptWithMode(testp, cipherlen, testp, 1, iv, CBC, NULL);
+			testp[plainlen] = 0;
+			printk("CBC no pad key in cpu: %s\n", testp);
+		}
+
+        memcpy(testp, testm, strlen(testm));
+        cipherlen = SM4EncryptWithModePad(testp, i, testp, 0, NULL, ECB, key);
+        plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 0, NULL, ECB, key);
+        testp[plainlen] = 0;
+        printk("ECB no pad: %s\n", testp);
+
+        memcpy(testp, testm, strlen(testm));
+        cipherlen = SM4EncryptWithModePad(testp, i, testp, 1, iv, CBC, key);
+        plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 1, iv, CBC, key);
+        testp[plainlen] = 0;
+        printk("CBC no pad: %s\n", testp);
+
+        memcpy(testp, testm, strlen(testm));
+        cipherlen = SM4EncryptWithModePad(testp, i, testp, 0, NULL, ECB, NULL);
+        plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 0, NULL, ECB, NULL);
+        testp[plainlen] = 0;
+        printk("ECB no pad key in cpu: %s\n", testp);
+
+        memcpy(testp, testm, strlen(testm));
+        cipherlen = SM4EncryptWithModePad(testp, i, testp, 1, iv, CBC, NULL);
+        plainlen = SM4DecryptWithModePad(testp, cipherlen, testp, 1, iv, CBC, NULL);
+        testp[plainlen] = 0;
+        printk("CBC no pad key in cpu: %s\n", testp);
+	}
 }

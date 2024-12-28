@@ -424,7 +424,7 @@ int sm2dec(int fd, unsigned long int cmd, unsigned char * message,  int messlen,
 	}
 	if(cmd == SM2_SAFE_DEC && debugFlag)
 	{
-		testsm2.len = SM4DecryptWithMode(testsm2.plain, testsm2.len, testsm2.plain, testsm2.len, NULL, ECB, outtemp);
+		testsm2.len = SM4DecryptWithModePad(testsm2.plain, testsm2.len, testsm2.plain, testsm2.len, NULL, ECB, outtemp);
 	}
 	memcpy(out, testsm2.plain, testsm2.len);
 	return testsm2.len;
@@ -996,6 +996,9 @@ void showhelp(void)
 //SYX : no need for thread? 
 //SYX : SM2_SAFE_DEC too slow
 int main(int argc, char **argv){
+
+	// sm4_cypher_128_test();
+
 	int i,res, cur=LOOP;
 	if(argc < 2)
 	{
