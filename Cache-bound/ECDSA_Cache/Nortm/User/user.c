@@ -296,7 +296,7 @@ int main(int argc, char **argv){
 					else{
 						printf("verify failed\n");
 					}
-					printf("sign speed: \t %f\n", (float)1000000/(end.tv_usec-beg.tv_usec+1000000*(end.tv_sec-beg.tv_sec)));
+					printf("time: %.3fms\n", 1.0*(end.tv_usec-beg.tv_usec)/1000 + 1.0*(end.tv_sec-beg.tv_sec)*1000);
 				}
 				break;
 			}
@@ -346,7 +346,5 @@ int main(int argc, char **argv){
 	}
 	close(fd);
 
-	//char typechar[4][15] = {"Sign","SafeSign"};
-	//printf("success cout is \t %d \t type \t %s \t speed: \t %f\n", succ_count,typechar[type-4], (float)(succ_count)*1000000/(end.tv_usec-beg.tv_usec+1000000*(end.tv_sec-beg.tv_sec)));
 	return 0;
 }
