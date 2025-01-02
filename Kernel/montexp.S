@@ -8,6 +8,8 @@
 	
 
 	.file	"montexp.S"
+	.data
+	  my_var: .quad 0x123344
 	.text
 
 
@@ -2623,63 +2625,66 @@ montexp1024:
 	vmovdqu64   192(%rcx),		B2
 	vmovdqu64   224(%rcx),		B3
 
-/*
-	vpxorq		%zmm15,	%zmm15,	%zmm15
-	vmovdqu64		%xmm16,	%xmm0
-	valignq  $2,   %zmm16,   %zmm15, %zmm16
-	vmovdqu64		%xmm16,	%xmm1
-	valignq  $2,   %zmm16,   %zmm15, %zmm16
-	vmovdqu64		%xmm16,	%xmm2
-	valignq  $2,   %zmm16,   %zmm15, %zmm16
-	vmovdqu64		%xmm16,	%xmm3
-	valignq  $2,   %zmm16,   %zmm15, %zmm16
-	vmovdqu64		%xmm17,	%xmm4
-	valignq  $2,   %zmm17,   %zmm15, %zmm17
-	vmovdqu64		%xmm17,	%xmm5
-	valignq  $2,   %zmm17,   %zmm15, %zmm17
-	vmovdqu64		%xmm17,	%xmm6
-	valignq  $2,   %zmm17,   %zmm15, %zmm17
-	vmovdqu64		%xmm17,	%xmm7
-	valignq  $2,   %zmm17,   %zmm15, %zmm17
+  
+
+	mov	%rsi, my_var(%rip)
+
+	mov   $0x01, %eax # 0000 0001
+    kmovd %eax, %k1  
+	mov   $0x02, %eax # 0000 0010
+    kmovd %eax, %k2  
+	mov   $0x03, %eax # 0000 0011
+    kmovd %eax, %k3  
+
+ .rept	8
 	
-
-	vpermq		$0x54, A0, A0			#imm=1110
-	vpermq		$0xE0, A0, A0			#imm=3200
-	vpermq		$0x54, A1, A1			#imm=1110
-	vpermq		$0xE0, A1, A1			#imm=3200
-	vpermq		$0x54, A2, A2			#imm=1110
-	vpermq		$0xE0, A2, A2			#imm=3200
-	vpermq		$0x54, A3, A3			#imm=1110
-	vpermq		$0xE0, A3, A3			#imm=3200
-
-	vpermq		$0x54, B0, B0			#imm=1110
-	vpermq		$0xE0, B0, B0			#imm=3200
-	vpermq		$0x54, B1, B1			#imm=1110
-	vpermq		$0xE0, B1, B1			#imm=3200
-	vpermq		$0x54, B2, B2			#imm=1110
-	vpermq		$0xE0, B2, B2			#imm=3200
-	vpermq		$0x54, B3, B3			#imm=1110
-	vpermq		$0xE0, B3, B3			#imm=3200
-*/
-
-	vmovq	%rsi,	%xmm17
-
- .rept	16
-	
-	vmovq	%xmm17,	%rdx
-	movq		384(%rdx), %rbx
-	movq    $0x0123456789ABCDEF,    %rax
-	xorq	%rax,	%rbx
-	vmovq	%rbx,	%xmm16
+	mov my_var(%rip),	%rdx
+	movq		384(%rdx), %rax
 	addq	$8,	%rdx
-	vmovq	%rdx,	%xmm17
+	movq		384(%rdx), %rbx
+	addq	$8,	%rdx
+	mov	%rdx, my_var(%rip)
+	#8*16=128b ,一次解密128
 
-	.rept	64
+    vmovq	%rax,	%xmm16
+	vmovdqu64 	%zmm16,%zmm17{%k1}{z}
 
-	vmovq	%xmm16,	%rbx
-	movq	%rbx,	%rax
-	shr 	$1,		%rbx
 	vmovq	%rbx,	%xmm16
+	vpexpandq %zmm16,%zmm17{%k2}
+
+	movq    $0x0123456789ABCDEF,    %rax   
+	vmovq	  %rax ,%xmm16
+	vpbroadcastq %xmm16,%zmm16{%k3}{z}
+
+    vpxorq %zmm16,%zmm17,%zmm16
+ 
+	#vpxorq %zmm0 , %zmm0 ,%zmm0
+	#vpxorq %zmm1 , %zmm1 ,%zmm1
+	#vpxorq %zmm2 , %zmm2 ,%zmm2
+	#vpxorq %zmm3 , %zmm3 ,%zmm3
+	#vpxorq %zmm4 , %zmm4 ,%zmm4
+	#vpxorq %zmm5 , %zmm5 ,%zmm5
+	#vpxorq %zmm6 , %zmm6 ,%zmm6
+	#vpxorq %zmm7 , %zmm7 ,%zmm7
+
+	#xorq	%rax,	%rbx
+	#vmovq	%rbx,	%xmm16
+
+
+	.rept	128
+
+	vmovq	%xmm16,	%rax
+	vpermq $0xF1,%ymm16,%ymm16 # 1111 0001 即前3组64位 高位置0,最后一组为 原先的[64-127]位
+	
+	vmovq	%xmm16,	%rbx
+	and		$0x1,	%rbx
+	shl $63, %rbx
+	vpermq $0xF1,%ymm16,%ymm16 # 1111 0001 即前3组64位 高位置0,最后一组为 原先的[64-127]位
+	
+	vpsrlq $1, %xmm16,%xmm16{%k3}
+    vmovq  %rbx ,%xmm17
+	vporq %xmm16,%xmm17,%xmm16{%k1}
+
 	and		$0x1,	%rax
 	subq	$1,		%rax
 
