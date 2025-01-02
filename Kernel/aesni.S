@@ -1,5 +1,8 @@
 .file	"aes.S"
 .text
+#ifndef AES_NI
+#define AES_NI
+
 
 .set    rstate,     %xmm0  //AES state
 .set    rhelp,     %xmm1  //helping reg 1
@@ -180,3 +183,6 @@ key_shedule_for_round_ith:
     popq %rax
     popq %rdi
 .endm
+
+
+#endif

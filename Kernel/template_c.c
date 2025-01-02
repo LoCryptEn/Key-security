@@ -157,23 +157,10 @@ unsigned long temp[96]={0};
 //p c2 r3r c1 r2r//
 
 //encp//
-temp[0]=0x7cd3c60035aa103b; /*(+65 lines) 计算CRT运算需要的Cp*R，*//*p(+16 lines 1024 bit)*/
-temp[1]=0x62c462b84c626ab3; /*p 每128bit分组 aes加密*/
-temp[2]=0x07c36c3b1d26b798;
-temp[3]=0x1767b593144915a3;
-temp[4]=0xcd79fa2c94c7be6d;
-temp[5]=0x52f5b349e0437c37;
-temp[6]=0x7d8c47d6dbbec03a;
-temp[7]=0x76900de9fb50e794;
-temp[8]=0x8a80021474be9afb;
-temp[9]=0x4ce22a776c3ea050 ;
-temp[10]=0x2235bde11c242412;
-temp[11]=0xdb60d7eb582519e9;
-temp[12]=0x3f56fc03471498af;
-temp[13]=0x41c16f6c1f2114c1;
-temp[14]=0xe95e0d321ac555df;
-temp[15]=0x1bf75b4eda667825;
-
+for( int j=0; j<16; ++j)/*c2 (+3 lines)密文C*/
+{
+	temp[j] = A[j]  ;
+}
 
 #define DEBUG_RSAREG_ENC_P
 #ifdef DEBUG_RSAREG_ENC_P
@@ -238,22 +225,10 @@ Comcq(pcp, temp);/*第一个参数保存在rdi ,第二个参数保存在rsi*/ /*
 //q c2 r3r c1 r2r//
 
 //encq//
-temp[0] = 0xd17dc21c42760588; /*(+65 lines) 计算CRT运算需要的Cq*R，*/
-temp[1] = 0xcf47ab0e698ffa1d;
-temp[2] = 0x2cd2609ebe844674;
-temp[3] = 0x98883a6912756664;
-temp[4] = 0xf0a6d3d16eeb4ccf;
-temp[5] = 0xa8d229f570c07090;
-temp[6] = 0x446451e76acc42d9;
-temp[7] = 0xa72983ec415a791d;
-temp[8] = 0x41231c88dcd8100b;
-temp[9] = 0x1cefc2a0efa05033;
-temp[10] = 0x64ce55c4a3bc654b;
-temp[11] = 0x5b8ca345b5ad8e04;
-temp[12] = 0x15cf7213c53cb526;
-temp[13] = 0xa11dce113e711dfa;
-temp[14] = 0x4d3c000642903cfa;
-temp[15] = 0x3c3b91e6f58ecdbd;
+for( int j=0; j<16; ++j)/*q (+16 lines 1024 bit)*/
+{
+	temp[j] = A[j+80]  ;
+}
 
 
 for(j=0; j<16; ++j)/*c2 (+3 lines)密文C的高1024比特*/ /*C1,C2 :C=C_2 * R + C_1*/

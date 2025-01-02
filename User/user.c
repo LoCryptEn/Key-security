@@ -83,22 +83,24 @@ int FuncTestCompl1()
 	*/
 
 
-message[0] = 0xfd9cafcc3c045c26; /*p(+16 lines 1024 bit)*/
-message[1] = 0x32ef097e0535be96; /*p 每128bit分组 被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}异或*/
-message[2] = 0x6c0497dcf7f56738;
-message[3] = 0xde34a27ed307fe31;
-message[4] = 0x96c3675f530df01f;
-message[5] = 0x9b87e0880fbe58db;
-message[6] = 0x6ea5483e79481b2d;
-message[7] = 0xcf69efcba61e2545;
-message[8] = 0xfa66443cf2c54c1f;
-message[9] = 0x91a636d09e5326d4;
-message[10] = 0xe8360376b8d9f509;
-message[11] = 0x67e0b4b79df3d136;
-message[12] = 0x71cf6321fa2fdec5;
-message[13] = 0xc9d10b89cc635181;
-message[14] = 0x67aca100bfc3bfa8;
-message[15] = 0x692da5df8d2d0e48;
+//encp//
+message[0]=0x7cd3c60035aa103b; /*(+65 lines) 计算CRT运算需要的Cp*R，*//*p(+16 lines 1024 bit)*/
+message[1]=0x62c462b84c626ab3; /*p 每128bit分组 aes加密*/
+message[2]=0x07c36c3b1d26b798;
+message[3]=0x1767b593144915a3;
+message[4]=0xcd79fa2c94c7be6d;
+message[5]=0x52f5b349e0437c37;
+message[6]=0x7d8c47d6dbbec03a;
+message[7]=0x76900de9fb50e794;
+message[8]=0x8a80021474be9afb;
+message[9]=0x4ce22a776c3ea050 ;
+message[10]=0x2235bde11c242412;
+message[11]=0xdb60d7eb582519e9;
+message[12]=0x3f56fc03471498af;
+message[13]=0x41c16f6c1f2114c1;
+message[14]=0xe95e0d321ac555df;
+message[15]=0x1bf75b4eda667825;
+
 for(i=0; i<16; ++i)
 {
 	para.messages[i] = message[i];
@@ -157,22 +159,23 @@ for(i=32; i<48; ++i)
 }
 
 
-message[48] = 0x9f0aba313b3fb3f6;/*dmp1(+16 lines)d mod p-1*/
-message[49] = 0xbd90634d2e8b8b58;/*dmp1和dmq1的每64比特分组被密钥0x0123456789ABCDEF异或*/
-message[50] = 0xccb3fc02a64331ac;
-message[51] = 0x4cf039f815cb543a;
-message[52] = 0x3e25befea59cfa75;
-message[53] = 0x2005deb80899339a;
-message[54] = 0xcc2c133790cc2aa4;
-message[55] = 0x55c01df88a0e2e19;
-message[56] = 0x81c9184f434d2669;
-message[57] = 0x8d47727d39f7e9db;
-message[58] = 0xda2f3f4d1a1158e2;
-message[59] = 0x94ee28146b787046;
-message[60] = 0xe8b95b571387d025;
-message[61] = 0x25e5b733a36fd9d2;
-message[62] = 0x5b8f35010afac267;
-message[63] = 0x5b2d7dc0ee6986dd;
+
+message[48]=0x5c46f7dd6533fa7e;/*dmp1(+16 lines)d mod p-1*/
+message[49]=0x245413d9834de153;/*dmp1被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}AES加密*/
+message[50]=0x1a815e56db479e5d;
+message[51]=0x338f90b57dfde430;
+message[52]=0x150314a0598d7532;
+message[53]=0x8bf4a829baadbcfc;
+message[54]=0xe41f7ce03e77b78d;
+message[55]=0xb66f6474ca175247;
+message[56]=0x7cb2b0b7d9517527;
+message[57]=0x3beeed25307cda62;
+message[58]=0xd036f0bf6234ff9a;
+message[59]=0xca2964ec4eccdf68;
+message[60]=0xd17d7a594b12f22d;
+message[61]=0x445ea14cf49bf384;
+message[62]=0x4897913989e11a98;
+message[63]=0x3756377a6fc54979;
 for(i=48; i<64; ++i)
 {
 	para.messages[i] = message[i];
@@ -256,22 +259,23 @@ for(i=112; i<128; ++i)
 	para.messages[i] = message[i];
 }
 
-message[128] = 0xebe146bf1611ebc6;/*dmq1(+16 lines)d mod q-1*/
-message[129] = 0x378eee3e741c9b8b;/*dmp1和dmq1的每64比特分组被密钥0x0123456789ABCDEF异或*/
-message[130] = 0xee384d1b92d5bd46;
-message[131] = 0x5e3355dd86b8ca40;
-message[132] = 0x45ebc0d86b81980a;
-message[133] = 0xa3dcb2217d5e4593;
-message[134] = 0xfca74009d2468e65;
-message[135] = 0x8db8273bea220ebb;
-message[136] = 0x245bdf1d6055c56e;
-message[137] = 0x81d5ce7395a65310;
-message[138] = 0x41c26d242f63acc5;
-message[139] = 0xd17b59e121b1d9b0;
-message[140] = 0x9aa6c94e7e63a210;
-message[141] = 0xcecb2a4530a6eec6;
-message[142] = 0xfd38a34a2d30d7b4;
-message[143] = 0x4bbfd830279330ce;
+
+message[128]=0x60060b391752d767;/*dmq1(+16 lines)d mod q-1*/
+message[129]=0xbef1e64b233d6436; /*dmq1被密钥{0x0123456789ABCDEF, 0xFEDCBA9876543210}AES加密*/
+message[130]=0xd998a67aeeab4723;
+message[131]=0x819b8871702eff76;
+message[132]=0x9f6e840003d4a002;
+message[133]=0xa2135973c64efdcf;
+message[134]=0x944e1f2d9a766b6b;
+message[135]=0x99f0bb07b58b50df;
+message[136]=0xbfaee4693508d3b0;
+message[137]=0x64dc76a39271da73;
+message[138]=0x3d49bfccd96ac9e9;
+message[139]=0x9516634c36b15759;
+message[140]=0xd0dc895e9fa1bdff;
+message[141]=0x110e4e2e041a466a;
+message[142]=0x97f1246b955125e2;
+message[143]=0xeb584ba8e4379f2e;
 for(i=128; i<144; ++i)
 {
 	para.messages[i] = message[i];
