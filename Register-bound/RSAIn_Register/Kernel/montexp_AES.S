@@ -52,37 +52,103 @@ montexp1024_AES_p:
 	### restore rsi ###
 	movq		%mm0, %rsi
 	push		%rsi
-
-	
-	### load arg ###
+   
+ 
+### load arg ###
 
 	#####################################################################
-	### load p to A B and Dec ###
-	vmovdqu		(%rsi), A0xmm		#M[0] M[1]
-	vmovdqu		16(%rsi), A1xmm		#M[2] M[3]
-	vmovdqu		32(%rsi), A2xmm		#M[4] M[5]
-	vmovdqu		48(%rsi), A3xmm		#M[6] M[7]
-	vmovdqu		64(%rsi), B0xmm		#M[8] M[9]
-	vmovdqu		80(%rsi), B1xmm		#M[10] M[11]
-	vmovdqu		96(%rsi), B2xmm		#M[12] M[13]
-	vmovdqu		112(%rsi), B3xmm	#M[14] M[15]
 
-	#########new add#############
-	movq    $0x0123456789ABCDEF,    %rax
-    vmovq   %rax,   %xmm17
-    valignq     $1, %ymm16, %ymm17,  %ymm16
+
+    ###########AES_DEC###########
+	vpxorq  %ymm1,     %ymm1,     %ymm1
+    movq    $0x0123456789ABCDEF,    %rax
+    vmovq   %rax,   %xmm1
+    valignq     $1, %ymm0, %ymm1,  %ymm0
     movq    $0xFEDCBA9876543210,    %rax
-    vmovq   %rax,   %xmm17
-    valignq     $3, %ymm16, %ymm17,  %ymm16
-	vpxorq	A0xmm,	%xmm16,	A0xmm
-	vpxorq	A1xmm,	%xmm16,	A1xmm
-	vpxorq	A2xmm,	%xmm16,	A2xmm
-	vpxorq	A3xmm,	%xmm16,	A3xmm
-	vpxorq	B0xmm,	%xmm16,	B0xmm
-	vpxorq	B1xmm,	%xmm16,	B1xmm
-	vpxorq	B2xmm,	%xmm16,	B2xmm
-	vpxorq	B3xmm,	%xmm16,	B3xmm
-	###############################
+    vmovq   %rax,   %xmm1
+    valignq     $3, %ymm0, %ymm1,  %ymm0
+
+	vmovdqu64 %zmm15 ,%zmm7 # no forget !!!!!
+
+	vmovdqu64 (%rsi), %zmm16
+	vmovdqu64 64(%rsi), %zmm17
+
+    
+    mov   $0x03, %eax # 0000 0011
+    kmovd %eax, %k1    
+    mov   $0x0C, %eax # 0000 1100
+    kmovd %eax, %k2
+    mov   $0x30, %eax # 0011 0000
+    kmovd %eax, %k3
+    mov   $0xC0, %eax # 1100 0000
+    kmovd %eax, %k4
+
+    vpcompressq %zmm16,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k1}
+
+	vpcompressq %zmm16,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k2}
+
+    vpcompressq %zmm16,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k3}
+
+    vpcompressq %zmm16,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k4}
+
+	vpcompressq %zmm17,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k1}
+
+	vpcompressq %zmm17,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k2}
+
+    vpcompressq %zmm17,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k3}
+
+    vpcompressq %zmm17,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k4}
+	
+	vmovdqu64 %zmm7 ,%zmm15
+
+	### load p to A B ###
+    
+    vpxorq  %zmm0,     %zmm0,     %zmm0
+	valignq $0x00,%zmm16 ,%zmm0, %zmm0{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm1,     %zmm1,     %zmm1
+	valignq $0x02,%zmm16 ,%zmm1, %zmm1{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm2,     %zmm2,     %zmm2
+	valignq $0x04,%zmm16,%zmm2, %zmm2{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm3,     %zmm3,     %zmm3
+	valignq $0x06,%zmm16,%zmm3, %zmm3{%k1}{z} #shift 6*64
+
+	vpxorq  %zmm4,     %zmm4,     %zmm4
+	valignq $0x00,%zmm17,%zmm4, %zmm4{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm5,     %zmm5,     %zmm5
+	valignq $0x02,%zmm17,%zmm5, %zmm5{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm6,     %zmm6,     %zmm6
+	valignq $0x04,%zmm17, %zmm6, %zmm6{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm7,     %zmm7,     %zmm7
+	valignq $0x06,%zmm17,%zmm7, %zmm7{%k1}{z} #shift 6*64
+
+
+	
+
+
+
+
 
 
 	### load p0 to M0 and Dec ###
@@ -90,77 +156,7 @@ montexp1024_AES_p:
 	vmovdqu		(%rsi), M0xmm
 
 
-/*	
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### dec load arg ####
-	key_schedule_128_128bit
-	
-	#10
-	xor_arg_128_128bit
-	vpxor 				rk_128, M0xmm, M0xmm
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-	vaesdeclast 			rhelp_128, M0xmm, M0xmm
-*/
 	### mov p0 from M0 to n0 ###
 	### high 64bit is padding, is all zero ###
 	vmovq				M0xmm, %rax
@@ -180,27 +176,6 @@ montexp1024_AES_p:
 	vpermq		$0xD8, M3, M3		#imm=3120
 
 
-	/*
-	vperm2i128	$0x20, B0, A0, M0
-	vperm2i128	$0x20, B1, A1, M1
-	vperm2i128	$0x20, B2, A2, M2
-	vperm2i128	$0x20, B3, A3, M3
-
-	vperm2i128	$0x1, M0, M0, T0
-	vperm2i128	$0x1, M1, M1, T1
-	vperm2i128	$0x1, M2, M2, T2
-	vperm2i128	$0x1, M3, M3, T3
-	
-	vshufpd		$0x05, T0, T0, T0		#imm=0101
-	vshufpd		$0x05, T1, T1, T1		#imm=0101
-	vshufpd		$0x05, T2, T2, T2		#imm=0101
-	vshufpd		$0x05, T3, T3, T3		#imm=0101
-
-	vblendpd	$0x06, T0, M0, M0		#imm=0110
-	vblendpd	$0x06, T1, M1, M1		#imm=0110
-	vblendpd	$0x06, T2, M2, M2		#imm=0110
-	vblendpd	$0x06, T3, M3, M3		#imm=0110
-	*/
 
 	#####################################################################
 
@@ -219,66 +194,7 @@ montexp1024_AES_p:
 	vmovdqu		96(%rsi), B2
 	vmovdqu		112(%rsi), B3
 
-/*	
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### dec load arg ####
-	key_schedule_128_128bit
-	
-	#10
-	xor_arg_128_128bit
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-*/
 
 	### rerange RRp to B ###
  
@@ -320,18 +236,13 @@ montexp1024_AES_p:
 
 	#### compute ####
 	call montmul1024
-/*
-	vmovdqu64 	A0, %ymm24
-	vmovdqu64 	A1, %ymm25
-	vmovdqu64 	A2, %ymm26
-	vmovdqu64 	A3, %ymm27
-*/
+
 	#####################################################################
 	### Enc and Store R ###
 	
 	#### store B ####
 	# store_B
-	store_A
+	store_A #A在存之前是R
 
 	vmovq	%xmm31,	%rcx
 	vmovdqu64 	A0, (%rcx)
@@ -344,27 +255,11 @@ montexp1024_AES_p:
 	vmovdqu64 	B3, 224(%rcx)
 
 
-/*
-	##################################################################
-	#### prepare result for enc ####
-
-
-	vpermq		$0x08, A0, A0			#imm=0020
-	vpermq		$0x08, A1, A1			#imm=0020
-	vpermq		$0x08, A2, A2			#imm=0020
-	vpermq		$0x08, A3, A3			#imm=0020
-	vpermq		$0x08, B0, B0			#imm=0020
-	vpermq		$0x08, B1, B1			#imm=0020
-	vpermq		$0x08, B2, B2			#imm=0020
-	vpermq		$0x08, B3, B3			#imm=0020
-
-*/
-
 	
 
 	##################################################################
 	##################################################################
-	### load Cp to A B and Dec ###
+	### load Cp*R to A B and Dec ###
 
 	popq		%rsi
 	pushq		%rsi
@@ -380,68 +275,9 @@ montexp1024_AES_p:
 	vmovdqu		112(%rsi), B3
 	subq		$128, %rsi
 
-/*
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### dec load arg ####
-	key_schedule_128_128bit
 	
-	#10
-	xor_arg_128_128bit
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-*/
-	
-	### rerange Cp to A ###
+	### rerange Cp*R to A ###
  
 	vperm2i128	$0x20, B0, A0, A0	#B0 B1 B8 B9
 	vperm2i128	$0x20, B1, A1, A1
@@ -474,9 +310,9 @@ montexp1024_AES_p:
 	vperm2i128	$0x21, T2, M2, T2
 	vperm2i128	$0x21, T3, M3, T3
 
-	### Compute CpR=Cp*RRp*R^(-1)mod p ###	
-	#Cp in A, and result CpR store in A	
-	call montmul1024
+	### Compute CpR=CpR * Rp*R^(-1)mod p ###	
+	#Cp*R in A, and result CpR store in A	
+	call montmul1024 #Cp*R现在在 A里
 
 	vmovq	%xmm31,	%rcx
 	addq	$256,	%rcx
@@ -488,73 +324,7 @@ montexp1024_AES_p:
 	vmovdqu64 	B1, 160(%rcx)
 	vmovdqu64 	B2, 192(%rcx)
 	vmovdqu64 	B3, 224(%rcx)
-/*
-	vmovdqu64 	A0, %ymm24
-	vmovdqu64 	A1, %ymm25
-	vmovdqu64 	A2, %ymm26
-	vmovdqu64 	A3, %ymm27
-*/	
-	
-/*	
-	#####################################################################
-	### Enc and Store CpR ###
 
-	#### prepare result for enc ####
-
-	vpermq		$0x08, A0, A0			#imm=0020
-	vpermq		$0x08, A1, A1			#imm=0020
-	vpermq		$0x08, A2, A2			#imm=0020
-	vpermq		$0x08, A3, A3			#imm=0020
-	vpermq		$0x08, B0, B0			#imm=0020
-	vpermq		$0x08, B1, B1			#imm=0020
-	vpermq		$0x08, B2, B2			#imm=0020
-	vpermq		$0x08, B3, B3			#imm=0020
-*/
-
-
-/*	
-	#### copy CpR from A to B ####
-
-	vpermq		$0x54, A0, A0			#imm=1110
-	vpermq		$0xE0, A0, A0			#imm=3200
-	vpermq		$0x54, A1, A1			#imm=1110
-	vpermq		$0xE0, A1, A1			#imm=3200
-	vpermq		$0x54, A2, A2			#imm=1110
-	vpermq		$0xE0, A2, A2			#imm=3200
-	vpermq		$0x54, A3, A3			#imm=1110
-	vpermq		$0xE0, A3, A3			#imm=3200
-
-	vpermq		$0x54, B0, B0			#imm=1110
-	vpermq		$0xE0, B0, B0			#imm=3200
-	vpermq		$0x54, B1, B1			#imm=1110
-	vpermq		$0xE0, B1, B1			#imm=3200
-	vpermq		$0x54, B2, B2			#imm=1110
-	vpermq		$0xE0, B2, B2			#imm=3200
-	vpermq		$0x54, B3, B3			#imm=1110
-	vpermq		$0xE0, B3, B3			#imm=3200
-*/	
-
-/*
-	vpermq		$0x0C, A0, A0			#imm=1100
-	vpermq		$0x0C, A1, A1			#imm=1100
-	vpermq		$0x0C, A2, A2			#imm=1100
-	vpermq		$0x0C, A3, A3			#imm=1100
-	vpermq		$0x0C, B0, B0			#imm=1100
-	vpermq		$0x0C, B1, B1			#imm=1100
-	vpermq		$0x0C, B2, B2			#imm=1100
-	vpermq		$0x0C, B3, B3			#imm=1100
-*/
-
-	/*
-	vshufpd		$0x00, A0, A0, A0		#imm=0101
-	vshufpd		$0x00, A1, A1, A1		#imm=0101
-	vshufpd		$0x00, A2, A2, A2		#imm=0101
-	vshufpd		$0x00, A3, A3, A3		#imm=0101
-	vshufpd		$0x00, B0, B0, B0		#imm=0101
-	vshufpd		$0x00, B1, B1, B1		#imm=0101
-	vshufpd		$0x00, B2, B2, B2		#imm=0101
-	vshufpd		$0x00, B3, B3, B3		#imm=0101
-	*/
 
 	##################################################################
 	
@@ -597,54 +367,7 @@ montexp1024_AES_p:
 	### Enc Result ###
 
 	#### prepare result for enc ####
-/*
-	vpermq		$0x08, A0, A0			#imm=0020
-	vpermq		$0x08, A1, A1			#imm=0020
-	vpermq		$0x08, A2, A2			#imm=0020
-	vpermq		$0x08, A3, A3			#imm=0020
-	vpermq		$0x08, B0, B0			#imm=0020
-	vpermq		$0x08, B1, B1			#imm=0020
-	vpermq		$0x08, B2, B2			#imm=0020
-	vpermq		$0x08, B3, B3			#imm=0020
-*/
-/*
-	##################################################################
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### enc result ####
-	xor_arg_128_128bit
-
-	key_expansion_128	rk_128 0x1 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x2 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x4 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x8 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x10 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x20 rhelp_128
-	aesenc_arg_128_128bit	
-
-	key_expansion_128	rk_128 0x40 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x80 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x1b rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x36 rhelp_128
-	aesenclast_arg_128_128bit
-*/
 
 ##################################################################################################
 	###							###	
@@ -700,7 +423,6 @@ montexp1024_AES_p:
 
 montexp1024_AES_q:
 
-
 ##################################################################################################
 	###							###	
 	### 	Load and Dec 					###
@@ -713,7 +435,14 @@ montexp1024_AES_q:
 	### restore rsi ###
 	movq		%mm0, %rsi
 	push		%rsi
+    
+	subq $640, %rsi
+    ### new add-- aes-dec-- ###
 
+
+
+	########## aes_dec end###############
+	addq $640, %rsi
 	### new add-- aes-dec-- ###
 	vpxorq  %ymm1,     %ymm1,     %ymm1
     movq    $0x0123456789ABCDEF,    %rax
@@ -723,172 +452,91 @@ montexp1024_AES_q:
     vmovq   %rax,   %xmm1
     valignq     $3, %ymm0, %ymm1,  %ymm0
 
-	vmovdqu		16(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm16
-	vmovdqu		32(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm17
-	vmovdqu		48(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm18
-	vmovdqu		64(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm19
-	vmovdqu		80(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm20
-	vmovdqu		96(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm21
-	vmovdqu		112(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	%xmm22
-	vmovdqu		(%rsi), %xmm15
-	aes_dec
-	vmovdqu64		%xmm15,	A0xmm
-	vmovdqu64		%xmm16,	A1xmm
-	vmovdqu64		%xmm17,	A2xmm
-	vmovdqu64		%xmm18,	A3xmm
-	vmovdqu64		%xmm19,	B0xmm
-	vmovdqu64		%xmm20,	B1xmm
-	vmovdqu64		%xmm21,	B2xmm
-	vmovdqu64		%xmm22,	B3xmm
-	vpxorq	%ymm8,	%ymm8,	%ymm8
-	vpxorq	%ymm9,	%ymm9,	%ymm9
+	vmovdqu64 %zmm15 ,%zmm7 # no forget !!!!!
 
-	movq    $0x0123456789ABCDEF,    %rax
-    vmovq   %rax,   %xmm9
-    valignq     $1, %ymm8, %ymm9,  %ymm8
-    movq    $0xFEDCBA9876543210,    %rax
-    vmovq   %rax,   %xmm9
-    valignq     $3, %ymm8, %ymm9,  %ymm8
+	vmovdqu64 (%rsi), %zmm16
+	vmovdqu64 64(%rsi), %zmm17
 
-	vpxorq	%xmm8,	%xmm15,	%xmm15
-	vmovdqu64		%xmm15,		(%rsi)
-	vpxorq	%xmm8,	%xmm16,	%xmm16
-	vmovdqu64		%xmm16,		16(%rsi)
-	vpxorq	%xmm8,	%xmm17,	%xmm17
-	vmovdqu64		%xmm17,		32(%rsi)
-	vpxorq	%xmm8,	%xmm18,	%xmm18
-	vmovdqu64		%xmm18,		48(%rsi)
-	vpxorq	%xmm8,	%xmm19,	%xmm19
-	vmovdqu64		%xmm19,		64(%rsi)
-	vpxorq	%xmm8,	%xmm20,	%xmm20
-	vmovdqu64		%xmm20,		80(%rsi)
-	vpxorq	%xmm8,	%xmm21,	%xmm21
-	vmovdqu64		%xmm21,		96(%rsi)
-	vpxorq	%xmm8,	%xmm22,	%xmm22
-	vmovdqu64		%xmm22,		112(%rsi)
+    
+    mov   $0x03, %eax # 0000 0011
+    kmovd %eax, %k1    
+    mov   $0x0C, %eax # 0000 1100
+    kmovd %eax, %k2
+    mov   $0x30, %eax # 0011 0000
+    kmovd %eax, %k3
+    mov   $0xC0, %eax # 1100 0000
+    kmovd %eax, %k4
 
+    vpcompressq %zmm16,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k1}
 
-	vpxorq	%ymm8,	%ymm8,	%ymm8
-	vpxorq	%ymm9,	%ymm9,	%ymm9
-	vpxorq	%ymm10,	%ymm10,	%ymm10
-	vpxorq	%ymm11,	%ymm11,	%ymm11
-	vpxorq	%ymm12,	%ymm12,	%ymm12
-	vpxorq	%ymm13,	%ymm13,	%ymm13
-	vpxorq	%ymm15,	%ymm15,	%ymm15
-	vpxorq	%ymm16,	%ymm16,	%ymm16
-	vpxorq	%ymm17,	%ymm17,	%ymm17
-	vpxorq	%ymm18,	%ymm18,	%ymm18
-	vpxorq	%ymm19,	%ymm19,	%ymm19
-	vpxorq	%ymm20,	%ymm20,	%ymm20
-	vpxorq	%ymm21,	%ymm21,	%ymm21
-	vpxorq	%ymm22,	%ymm22,	%ymm22
+	vpcompressq %zmm16,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k2}
+
+    vpcompressq %zmm16,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k3}
+
+    vpcompressq %zmm16,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k4}
+
+	vpcompressq %zmm17,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k1}
+
+	vpcompressq %zmm17,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k2}
+
+    vpcompressq %zmm17,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k3}
+
+    vpcompressq %zmm17,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k4}
+	
+	vmovdqu64 %zmm7 ,%zmm15
+
+	### load p to A B ###
+    
+    vpxorq  %zmm0,     %zmm0,     %zmm0
+	valignq $0x00,%zmm16 ,%zmm0, %zmm0{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm1,     %zmm1,     %zmm1
+	valignq $0x02,%zmm16 ,%zmm1, %zmm1{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm2,     %zmm2,     %zmm2
+	valignq $0x04,%zmm16,%zmm2, %zmm2{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm3,     %zmm3,     %zmm3
+	valignq $0x06,%zmm16,%zmm3, %zmm3{%k1}{z} #shift 6*64
+
+	vpxorq  %zmm4,     %zmm4,     %zmm4
+	valignq $0x00,%zmm17,%zmm4, %zmm4{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm5,     %zmm5,     %zmm5
+	valignq $0x02,%zmm17,%zmm5, %zmm5{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm6,     %zmm6,     %zmm6
+	valignq $0x04,%zmm17, %zmm6, %zmm6{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm7,     %zmm7,     %zmm7
+	valignq $0x06,%zmm17,%zmm7, %zmm7{%k1}{z} #shift 6*64
 	
 	########## aes_dec end###############
 
 	
-	### load arg ###
-/*
-	#####################################################################
-	### load q to A B and Dec ###
-	vmovdqu		(%rsi), A0xmm		#M[0] M[1]
-	vmovdqu		16(%rsi), A1xmm		#M[2] M[3]
-	vmovdqu		32(%rsi), A2xmm		#M[4] M[5]
-	vmovdqu		48(%rsi), A3xmm		#M[6] M[7]
-	vmovdqu		64(%rsi), B0xmm		#M[8] M[9]
-	vmovdqu		80(%rsi), B1xmm		#M[10] M[11]
-	vmovdqu		96(%rsi), B2xmm		#M[12] M[13]
-	vmovdqu		112(%rsi), B3xmm	#M[14] M[15]
-*/
+
 
 	### load q0 to M0 and Dec ###
 	addq		$512, %rsi
 	vmovdqu		(%rsi), M0xmm
 
-/*	
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### dec load arg ####
-	key_schedule_128_128bit
-	
-	#10
-	xor_arg_128_128bit
-	vpxor 				rk_128, M0xmm, M0xmm
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-	vaesdec 			rhelp_128, M0xmm, M0xmm
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-	vaesdeclast 			rhelp_128, M0xmm, M0xmm
-*/
 	### mov p0 from M0 to n0 ###
 	### high 64bit is padding, is all zero ###
 	vmovq				M0xmm, %rax
@@ -927,66 +575,6 @@ montexp1024_AES_q:
 	vmovdqu		112(%rsi), B3
 
 
-/*	
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
-
-	#### dec load arg ####
-	key_schedule_128_128bit
-	
-	#10
-	xor_arg_128_128bit
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-*/
 
 	### rerange RRq to B ###
  
@@ -1051,20 +639,7 @@ montexp1024_AES_q:
 	vmovdqu64 	B3, 224(%rcx)
 
 
-/*
-	##################################################################
-	#### prepare result for enc ####
 
-	vpermq		$0x08, A0, A0			#imm=0020
-	vpermq		$0x08, A1, A1			#imm=0020
-	vpermq		$0x08, A2, A2			#imm=0020
-	vpermq		$0x08, A3, A3			#imm=0020
-	vpermq		$0x08, B0, B0			#imm=0020
-	vpermq		$0x08, B1, B1			#imm=0020
-	vpermq		$0x08, B2, B2			#imm=0020
-	vpermq		$0x08, B3, B3			#imm=0020
-
-*/
 
 	
 	##################################################################
@@ -1089,66 +664,6 @@ montexp1024_AES_q:
 	subq		$128, %rsi
 
 
-/*
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
-
-	#### dec load arg ####
-	key_schedule_128_128bit
-	
-	#10
-	xor_arg_128_128bit
-
-	#9
-	inv_key_expansion_128_128bit	rk_128 0x36 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#8
-	inv_key_expansion_128_128bit	rk_128 0x1b rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#7
-	inv_key_expansion_128_128bit	rk_128 0x80 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#6
-	inv_key_expansion_128_128bit	rk_128 0x40 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#5
-	inv_key_expansion_128_128bit	rk_128 0x20 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#4
-	inv_key_expansion_128_128bit	rk_128 0x10 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#3
-	inv_key_expansion_128_128bit	rk_128 0x8 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#2
-	inv_key_expansion_128_128bit	rk_128 0x4 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#1
-	inv_key_expansion_128_128bit	rk_128 0x2 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdec_arg_128_128bit
-
-	#0
-	inv_key_expansion_128_128bit	rk_128 0x1 rhelp_128
-	vaesimc				rk_128, rhelp_128
-	aesdeclast_arg_128_128bit
-*/
 
 
 	### rerange Cq to A ###
@@ -1205,54 +720,9 @@ montexp1024_AES_q:
 	vmovdqu64 	B3, 224(%rcx)
 
 
-/*
-	#####################################################################
-	### Enc and Store CqR ###
-
-	#### prepare result for enc ####
-
-	vpermq		$0x08, A0, A0			#imm=0020
-	vpermq		$0x08, A1, A1			#imm=0020
-	vpermq		$0x08, A2, A2			#imm=0020
-	vpermq		$0x08, A3, A3			#imm=0020
-	vpermq		$0x08, B0, B0			#imm=0020
-	vpermq		$0x08, B1, B1			#imm=0020
-	vpermq		$0x08, B2, B2			#imm=0020
-	vpermq		$0x08, B3, B3			#imm=0020
-
-	valignq  $2,   %zmm16,   %zmm0, %zmm16
-	valignq  $2,   %zmm16,   %zmm1, %zmm16
-	valignq  $2,   %zmm16,   %zmm2, %zmm16
-	valignq  $2,   %zmm16,   %zmm3, %zmm16
-	valignq  $2,   %zmm17,   %zmm4, %zmm17
-	valignq  $2,   %zmm17,   %zmm5, %zmm17
-	valignq  $2,   %zmm17,   %zmm6, %zmm17
-	valignq  $2,   %zmm17,   %zmm7, %zmm17
-*/
 
 
-/*
 
-	#### copy CqR from A to B ####
-
-	vpermq		$0x54, A0, A0			#imm=1110
-	vpermq		$0xE0, A0, A0			#imm=3200
-	vpermq		$0x54, A1, A1			#imm=1110
-	vpermq		$0xE0, A1, A1			#imm=3200
-	vpermq		$0x54, A2, A2			#imm=1110
-	vpermq		$0xE0, A2, A2			#imm=3200
-	vpermq		$0x54, A3, A3			#imm=1110
-	vpermq		$0xE0, A3, A3			#imm=3200
-
-	vpermq		$0x54, B0, B0			#imm=1110
-	vpermq		$0xE0, B0, B0			#imm=3200
-	vpermq		$0x54, B1, B1			#imm=1110
-	vpermq		$0xE0, B1, B1			#imm=3200
-	vpermq		$0x54, B2, B2			#imm=1110
-	vpermq		$0xE0, B2, B2			#imm=3200
-	vpermq		$0x54, B3, B3			#imm=1110
-	vpermq		$0xE0, B3, B3			#imm=3200
-*/	
 
 
 	##################################################################
@@ -1260,21 +730,11 @@ montexp1024_AES_q:
 	#### transfer %rsi ####
 	popq		%rsi
 	movq		%rsi, %mm0
-/*
-	vmovdqu64 	B0, %ymm24
-	vmovdqu64 	B1, %ymm25
-	vmovdqu64 	B2, %ymm26
-	vmovdqu64 	B3, %ymm27
-*/
+
 	### compute Cq^imq1 mod p ###
 	#result in A
 	call montexp1024
-/*
-	vmovdqu64 	A0, %ymm24
-	vmovdqu64 	A1, %ymm25
-	vmovdqu64 	A2, %ymm26
-	vmovdqu64 	A3, %ymm27
-*/
+
 
 	##################################################################
 	##################################################################
@@ -1311,51 +771,8 @@ montexp1024_AES_q:
 	vpermq		$0x08, B1, B1			#imm=0020
 	vpermq		$0x08, B2, B2			#imm=0020
 	vpermq		$0x08, B3, B3			#imm=0020
-/*
-	vmovdqu64 	A0, %ymm24
-	vmovdqu64 	A1, %ymm25
-	vmovdqu64 	A2, %ymm26
-	vmovdqu64 	A3, %ymm27
-*/	
-/*
-	##################################################################
-	#### load key ####
-	vperm2i128	$0x10, M0, M0, T2
 
-	#### enc result ####
-	xor_arg_128_128bit
 
-	key_expansion_128	rk_128 0x1 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x2 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x4 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x8 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x10 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x20 rhelp_128
-	aesenc_arg_128_128bit	
-
-	key_expansion_128	rk_128 0x40 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x80 rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x1b rhelp_128
-	aesenc_arg_128_128bit
-
-	key_expansion_128	rk_128 0x36 rhelp_128
-	aesenclast_arg_128_128bit
-
-*/	
 	
 ##################################################################################################
 	###							###	
@@ -1368,7 +785,6 @@ montexp1024_AES_q:
 
 	ret
 	.size	montexp1024_AES_q, .-montexp1024_AES_q
-
 
 
 
