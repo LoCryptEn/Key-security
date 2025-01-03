@@ -1,20 +1,13 @@
 .file	"aes.S"
 .text
+#ifndef AES_NI
+#define AES_NI
+
 
 .set    rstate,     %xmm0  //AES state
 .set    rhelp,     %xmm1  //helping reg 1
-.set    rhelp2,     %xmm13  //helping reg 2
-.set    rk0,     %xmm2  //round key 0
-.set    rk1,     %xmm3  //round key 1
-.set    rk2,     %xmm4  //round key 2
-.set    rk3,     %xmm5  //round key 3
-.set    rk4,     %xmm6  //round key 4
-.set    rk5,     %xmm7  //round key 5
-.set    rk6,     %xmm8  //round key 6
-.set    rk7,     %xmm9  //round key 7
-.set    rk8,     %xmm10  //round key 8
-.set    rk9,     %xmm11  //round key 9
-.set    rk10,     %xmm12  //round key 10
+.set    round_key_i,     %xmm2  //round key i
+.set    round_key_j,     %xmm3  //round key j
 .set    mes,      %xmm15 //message
 
 .macro      key_shedule     r0      r1      rcon
@@ -29,63 +22,167 @@
     pxor    rhelp,      \r1 
 .endm
 
-.macro      aes_enc
-    key_shedule     rstate     rk1     0x1      
-    key_shedule     rk1     rk2     0x2
-    key_shedule     rk2     rk3     0x4
-    key_shedule     rk3     rk4     0x8
-    key_shedule     rk4     rk5     0x10
-    key_shedule     rk5     rk6     0x20
-    key_shedule     rk6     rk7     0x40
-    key_shedule     rk7     rk8     0x80
-    key_shedule     rk8     rk9     0x1b
-    key_shedule     rk9     rk10     0x36
 
-    pxor    rstate,     mes
-    aesenc     rk1,     mes 
-    aesenc     rk2,     mes
-    aesenc     rk3,     mes
-    aesenc     rk4,     mes
-    aesenc     rk5,     mes
-    aesenc     rk6,     mes
-    aesenc     rk7,     mes
-    aesenc     rk8,     mes
-    aesenc     rk9,     mes
-    aesenclast     rk10,     mes
+#ENC用到：round_key_i round_key_j  rhelp （不算mes(因为本来就会用到),rstate(直接从DR里取到),3个寄存器） 
+.macro      aes_enc
+    vmovdqu     rstate,    round_key_i
+    pxor    round_key_i,     mes
+    key_shedule     round_key_i     round_key_j     0x1
+    aesenc     round_key_j,     mes
+    key_shedule     round_key_j     round_key_i     0x2
+    aesenc     round_key_i,     mes
+    key_shedule     round_key_i     round_key_j     0x4
+    aesenc     round_key_j,     mes
+    key_shedule     round_key_j     round_key_i     0x8
+    aesenc     round_key_i,     mes
+    key_shedule     round_key_i     round_key_j     0x10
+    aesenc     round_key_j,     mes
+    key_shedule     round_key_j     round_key_i     0x20
+    aesenc     round_key_i,     mes
+    key_shedule     round_key_i     round_key_j     0x40
+    aesenc     round_key_j,     mes
+    key_shedule     round_key_j     round_key_i     0x80
+    aesenc     round_key_i,     mes
+    key_shedule     round_key_i     round_key_j     0x1b
+    aesenc     round_key_j,     mes
+    key_shedule     round_key_j     round_key_i     0x36
+    aesenclast     round_key_i,     mes
 .endm
+
+#生成解密用第i轮密钥，假设128bit AES，round为 0-10，共11轮密钥，这个宏用来生成1-10轮,
+#结果放在 round_key_i
+key_shedule_for_round_ith:
+    # 保存寄存器-略
+
+    movq %rdi, %rax #加载key_shedule执行次数到 %eax
+     # 检查是否为 0
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end_after_imc
+    key_shedule     round_key_i     round_key_j     0x1
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_j     round_key_i     0x2
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_i     round_key_j     0x4
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_j     round_key_i     0x8
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_i     round_key_j     0x10
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_j     round_key_i     0x20
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_i     round_key_j     0x40
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_j     round_key_i     0x80
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_i     round_key_j     0x1b
+    decl %eax
+    cmpl $0, %eax
+    je .L_key_shedule_for_round_end
+    key_shedule     round_key_j     round_key_i     0x36
+
+    
+.L_key_shedule_for_round_end:
+    decl %eax
+    cmpl $0, %eax   
+    je .L_key_shedule_for_round_end_after_imc
+    movq %rdi, %rax
+    testb $1,%al
+    jz .L_no_copy_from_round_key_j_to_round_key_i
+    vmovdqu  round_key_j, round_key_i
+.L_no_copy_from_round_key_j_to_round_key_i:
+    movq %rdi, %rax
+    cmpl $10, %eax
+    je .L_key_shedule_for_round_end_after_imc
+    aesimc  round_key_i,    round_key_i
+.L_key_shedule_for_round_end_after_imc:  #第0/10轮不用imc
+    # 恢复寄存器-略
+    #Recovery
+
+
+    ret
+
+
+   
+
 
 .macro      aes_dec
-
-    key_shedule     rstate     rk1     0x1      
-    key_shedule     rk1     rk2     0x2
-    key_shedule     rk2     rk3     0x4
-    key_shedule     rk3     rk4     0x8
-    key_shedule     rk4     rk5     0x10
-    key_shedule     rk5     rk6     0x20
-    key_shedule     rk6     rk7     0x40
-    key_shedule     rk7     rk8     0x80
-    key_shedule     rk8     rk9     0x1b
-    key_shedule     rk9     rk10     0x36
-
-    aesimc  rk1,    rk1
-    aesimc  rk2,    rk2
-    aesimc  rk3,    rk3
-    aesimc  rk4,    rk4
-    aesimc  rk5,    rk5
-    aesimc  rk6,    rk6
-    aesimc  rk7,    rk7
-    aesimc  rk8,    rk8
-    aesimc  rk9,    rk9
-
-    pxor    rk10,     mes
-    aesdec     rk9,     mes 
-    aesdec     rk8,     mes
-    aesdec     rk7,     mes
-    aesdec     rk6,     mes
-    aesdec     rk5,     mes
-    aesdec     rk4,     mes
-    aesdec     rk3,     mes
-    aesdec     rk2,     mes
-    aesdec     rk1,     mes
-    aesdeclast     rstate,     mes
+    pushq %rax
+    pushq %rdi
+    vmovdqu     rstate,    round_key_i
+    # 调用函数 key_shedule_for_round_ith
+    movq $10, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    pxor    round_key_i,     mes
+    vmovdqu     rstate,    round_key_i
+     # 调用函数 key_shedule_for_round_ith
+    movq $9, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes 
+    vmovdqu     rstate,    round_key_i
+ 
+     # 调用函数 key_shedule_for_round_ith
+    movq $8, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+    vmovdqu     rstate,    round_key_i
+     # 调用函数 key_shedule_for_round_ith
+    movq $7, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+    vmovdqu     rstate,    round_key_i
+         # 调用函数 key_shedule_for_round_ith
+    movq $6, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+            # 调用函数 key_shedule_for_round_ith
+    movq $5, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+         # 调用函数 key_shedule_for_round_ith
+    movq $4, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+          # 调用函数 key_shedule_for_round_ith
+    movq $3, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+         # 调用函数 key_shedule_for_round_ith
+    movq $2, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+         # 调用函数 key_shedule_for_round_ith
+    movq $1, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdec     round_key_i,     mes
+        vmovdqu     rstate,    round_key_i
+         # 调用函数 key_shedule_for_round_ith
+    movq $0, %rdi  # 传递参数 
+    call key_shedule_for_round_ith
+    aesdeclast     round_key_i,     mes
+    popq %rax
+    popq %rdi
 .endm
+
+
+#endif
