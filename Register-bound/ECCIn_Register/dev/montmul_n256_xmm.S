@@ -1,6 +1,6 @@
 // Montmul n256
 // n256: 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
-// Input: x(256 bits in [xmm28 | xmm29]), y(256 bits in [xmm30| xmm31])
+// Input: x(256 bits in [xmm28 | xmm29]), y(256 bits in [xmm30 | xmm31])
 // Output: x * y * R^-1
 
 
@@ -57,8 +57,15 @@ bignum_montmul_n256:
         movq    %rdx, %rcx
 
 //  CIOS round 0
-
+        xorq    %r8,    %r8
+        xorq    %r9,    %r9
+        xorq    %r10,   %r10
+        xorq    %r11,   %r11
+        xorq    %r12,   %r12
         xorq    %r13,   %r13
+        xorq    %r14,   %r14
+        xorq    %r15,   %r15
+
         vmovq   %xmm31, %rdx
         vmovq   %xmm29, %rax
         mulx    %rax,   %r8,    %r9
@@ -188,11 +195,13 @@ bignum_montmul_n256:
         cmovc   %r14,   %r9
         cmovc   %r15,   %r10
 
-        movq    %r12,   0(%rdi)
-        movq    %r13,   8(%rdi)
-        movq    %r14,   16(%rdi)
-        movq    %r15,   24(%rdi)
-        
+
+        vpinsrq     $1,     %r15,   %xmm13,  %xmm13
+        vpinsrq     $0,     %r14,   %xmm13,  %xmm13
+
+        vpinsrq     $1,     %r13,   %xmm14,  %xmm14
+        vpinsrq     $0,     %r12,   %xmm14,  %xmm14
+
 //  Restore registers and return
 
         popq    %r15
