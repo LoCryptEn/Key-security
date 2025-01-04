@@ -9,7 +9,7 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 - User目录下为用户态的应用程序，通过ioctl接口调用内核模块中的密码运算.
 ### 程序使用
 1. 编译安装内核模块
-	- 在Kernel下，执行make命令，编译内核模块；
+	- 在Kernel目录下，执行make命令，编译内核模块；
 	- 在Kernel目录下，执行make install命令；
 		- sudo insmod nortm.ko，安装内核模块
 		- chmod 777 /dev/nortm，修改权限
