@@ -11,6 +11,7 @@
 - Cache-bound/ 包含基于Cache的密码实现
   	- GMIn_Cache/ 基于Cache的国密算法SM2，SM3-HMAC，SM4；编译，运行以及软硬件环境请参考GMIn_Cache/Nortm/目录下的Readme文档。
   	- ECDSA_Cache/ 基于Cache的椭圆曲线签名算法ECDSA；编译，运行以及软硬件环境请参考ECDSA_Cache/Nortm/目录下的Readme文档。
+  	- DilithiumIn_Cache/ 基于Cache的格签名算法Dilithium；编译，运行以及软硬件环境请参考DilithiumIn_Cache/Nortm/目录下的Readme文档。
 	
 - Register-bound/ 包含基于寄存器的密码实现
 	- RSAIn_Register/ 基于寄存器的RSA解密算法；编译，运行以及软硬件环境请参考RSAIn_Register/目录下的Readme文档。
