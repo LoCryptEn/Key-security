@@ -11,7 +11,7 @@ Nortm是支持ECDSA签名算法安全实现的内核模块.
 - User目录下为用户态的应用程序，通过ioctl接口调用内核模块中的密码运算.
 ### 程序使用
 1. 编译安装内核模块
-    - 在Kernel下，执行make命令，编译内核模块；
+    - 在Kernel目录下，执行make命令，编译内核模块；
     - 在Kernel目录下，执行sudo make install命令，安装内核模块；
     - 查看内核模块是否安装成功：lsmod |grep nortm
     - chmod 777 /dev/nortm (修改权限)
