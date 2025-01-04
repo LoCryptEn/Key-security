@@ -23,6 +23,7 @@ dosecsig:
     // Dec k1
     vmovdqu64   (%rdx), %xmm0
     call        AES_DEC
+    vmovq       %xmm0,  %r8
     pextrq      $1,     %xmm0,  %r9
     bswap       %r8
     bswap       %r9
@@ -56,6 +57,7 @@ dosecsig:
     movq    %r14,   %r10
     movq    %r15,   %r11
     
+    // k = (k1 + k2) mod n & save to [r12 | r13 | r14 | r15]
     movq    $0xf3b9cac2fc632551,    %rbx
     subq    %rbx,    %r15
     movq    $0xbce6faada7179e84,    %rbx
@@ -83,7 +85,7 @@ dosecsig:
     vpinsrq     $1,     %r14,   %xmm31,  %xmm31
     vpinsrq     $0,     %r15,   %xmm31,  %xmm31
 
-    // Done k = k1 + k2 & save to [xmm30 | xmm31]
+    // save k to [xmm30 | xmm31]
     
     // Dec a
     vmovdqu64   64(%rdx), %xmm0
@@ -93,11 +95,19 @@ dosecsig:
     bswap       %r8
     bswap       %r9
 
+    vpinsrq     $1,     %r8,    %xmm28,  %xmm28
+    vpinsrq     $0,     %r9,    %xmm28,  %xmm28
+
     vmovdqu64   80(%rdx), %xmm0
     call        AES_DEC
     vmovq       %xmm0,  %r10
     pextrq      $1,     %xmm0,  %r11
     bswap       %r10
     bswap       %r11
+
+    vpinsrq     $1,     %r10,   %xmm29,  %xmm29
+    vpinsrq     $0,     %r11,   %xmm29,  %xmm29
+
+    call        bignum_montmul_n256
 
     ret

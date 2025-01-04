@@ -180,20 +180,26 @@ bignum_montmul_n256:
         adox    %r9,    %r8
 
 //  compare and sub 
+        xorq    %rcx,   %rcx
+        xorq    %rdx,   %rdx
+        xorq    %rax,   %rax
+        xorq    %r9,    %r9
+        xorq    %r10,   %r10
+        
         movq    $0x0c46353d039cdaaf, %rcx
-        addq    %rcx,   %r12
+        addq    %r12,   %rcx
         movq    $0x4319055258e8617b, %rdx
-        adcq    %rdx,   %r13
-        adcq    $0,     %r14
+        adcq    %r13,   %rdx
+        adcq    %r14,   %rax
         movq    $0x00000000ffffffff, %r9
-        adcq    %r9,    %r15
+        adcq    %r15,   %r9
         decq    %r10
-        adcq    %r10,   %r8
+        adcq    %r8,    %r10
 
-        cmovc   %r12,   %rcx
-        cmovc   %r13,   %rdx
-        cmovc   %r14,   %r9
-        cmovc   %r15,   %r10
+        cmovc   %rcx,   %r12
+        cmovc   %rdx,   %r13  
+        cmovc   %rax,   %r14  
+        cmovc   %r9,    %r15
 
 
         vpinsrq     $1,     %r15,   %xmm13,  %xmm13
