@@ -1,7 +1,7 @@
 // Montmul n256
 // n256: 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
 // Input: x(256 bits in [xmm28 | xmm29]), y(256 bits in [xmm30 | xmm31])
-// Output: x * y * R^-1
+// Output: x * y * R^-1 store in [xmm26 | xmm27]
 
 
 //  Macro "mulpadd i x" adds %rdx * x to the (i,i+1) position of
@@ -202,11 +202,11 @@ bignum_montmul_n256:
         cmovc   %r9,    %r15
 
 
-        vpinsrq     $1,     %r15,   %xmm13,  %xmm13
-        vpinsrq     $0,     %r14,   %xmm13,  %xmm13
+        vpinsrq     $1,     %r15,   %xmm26,  %xmm26
+        vpinsrq     $0,     %r14,   %xmm26,  %xmm26
 
-        vpinsrq     $1,     %r13,   %xmm14,  %xmm14
-        vpinsrq     $0,     %r12,   %xmm14,  %xmm14
+        vpinsrq     $1,     %r13,   %xmm27,  %xmm27
+        vpinsrq     $0,     %r12,   %xmm27,  %xmm27
 
 //  Restore registers and return
 
