@@ -74,28 +74,21 @@ dosecsig:
     // Dec k1
     vmovdqa64   (%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r8
-    pextrq      $1,     %xmm0,  %r9
-    bswap       %r8
-    bswap       %r9
+    vpshufb     %xmm15,    %xmm0,  %xmm0
+    pextrq      $1,     %xmm0,  %r8
+    vmovq       %xmm0,  %r9
 
     vmovdqa64   16(%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r10
-    pextrq      $1,     %xmm0,  %r11
-    bswap       %r10
-    bswap       %r11
+    vpshufb     %xmm15,    %xmm0,  %xmm0
+    pextrq      $1,     %xmm0,  %r10
+    vmovq       %xmm0,  %r11
 
     // read k2
-    movq        32(%rdi), %r12
-    movq        40(%rdi), %r13
-    movq        48(%rdi), %r14
-    movq        56(%rdi), %r15
-    
-    bswap       %r12
-    bswap       %r13
-    bswap       %r14
-    bswap       %r15
+    movq        32(%rdi), %r15
+    movq        40(%rdi), %r14
+    movq        48(%rdi), %r13
+    movq        56(%rdi), %r12
 
     addmod
     // save k to [xmm30 | xmm31]
@@ -103,23 +96,13 @@ dosecsig:
     // Dec a
     vmovdqa64   64(%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r8
-    pextrq      $1,     %xmm0,  %r9
-    bswap       %r8
-    bswap       %r9
-
-    vpinsrq     $1,     %r8,    %xmm28,  %xmm28
-    vpinsrq     $0,     %r9,    %xmm28,  %xmm28
+    vpshufb     %xmm15,   %xmm0,  %xmm0
+    vmovdqa64   %xmm0,    %xmm28
 
     vmovdqa64   80(%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r10
-    pextrq      $1,     %xmm0,  %r11
-    bswap       %r10
-    bswap       %r11
-
-    vpinsrq     $1,     %r10,   %xmm29,  %xmm29
-    vpinsrq     $0,     %r11,   %xmm29,  %xmm29
+    vpshufb     %xmm15,   %xmm0,  %xmm0
+    vmovdqa64   %xmm0,    %xmm29
 
     // Copy a to [xmm24 | xmm25]
     vmovdqa64   %xmm28,  %xmm24
@@ -134,23 +117,13 @@ dosecsig:
     // Dec d
     vmovdqa64   96(%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r8
-    pextrq      $1,     %xmm0,  %r9
-    bswap       %r8
-    bswap       %r9
-
-    vpinsrq     $1,     %r8,    %xmm28,  %xmm28
-    vpinsrq     $0,     %r9,    %xmm28,  %xmm28
+    vpshufb     %xmm15,   %xmm0,  %xmm0
+    vmovdqa64   %xmm0,    %xmm28
 
     vmovdqa64   112(%rdi), %xmm0
     call        AES_DEC
-    vmovq       %xmm0,  %r10
-    pextrq      $1,     %xmm0,  %r11
-    bswap       %r10
-    bswap       %r11
-
-    vpinsrq     $1,     %r10,   %xmm29,  %xmm29
-    vpinsrq     $0,     %r11,   %xmm29,  %xmm29
+    vpshufb     %xmm15,    %xmm0,  %xmm0
+    vmovdqa64   %xmm0,    %xmm29 
 
     // Load r * R^{-1}
     vmovdqa64   128(%rdi), %xmm30
@@ -178,10 +151,10 @@ dosecsig:
     vmovq       %xmm27, %r11
 
     // Load H(m) to [r12 | r13 | r14 | r15]
-    movq        160(%rdi), %r12
-    movq        168(%rdi), %r13
-    movq        176(%rdi), %r14
-    movq        184(%rdi), %r15
+    movq        160(%rdi), %r15
+    movq        168(%rdi), %r14
+    movq        176(%rdi), %r13
+    movq        184(%rdi), %r12
 
     addmod
 
@@ -189,11 +162,10 @@ dosecsig:
     vmovdqa64   %xmm25, %xmm29
 
     call       bignum_montmul_n256
-
-
-    vmovdqa64   %xmm13, (%rsi)
-    vmovdqa64   %xmm14, 16(%rsi)
-    vmovdqa64   %xmm26, 32(%rsi)
-    vmovdqa64   %xmm27, 48(%rsi)
+    
+    vmovdqa64   %xmm14, (%rsi)
+    vmovdqa64   %xmm13, 16(%rsi)
+    vmovdqa64   %xmm27, 32(%rsi)
+    vmovdqa64   %xmm26, 48(%rsi)
 
     ret
