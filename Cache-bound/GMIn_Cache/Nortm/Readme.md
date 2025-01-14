@@ -41,7 +41,7 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 
 上述命令在Ubuntu16.04环境中能运行成功
 
-注1：CPU需要支持Intel Transactional Synchronization Extension(Intel TSX)，并确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
+注1：CPU需要支持Intel Transactional Synchronization Extension (Intel TSX)，并确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
 
 注2：若使用Safe SM2 KeyGen得到SM2公私钥文件，那么此文件只能使用在Safe SM2模式下
 
