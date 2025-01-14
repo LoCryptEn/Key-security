@@ -128,6 +128,8 @@ aes_enc_master:
     mov %r12, (%rsp)
     mov %r13, 8(%rsp)
     movupd (%rsp), %xmm0        # mov key to xmm0
+	movq $0, (%rsp)  
+    movq $0, 8(%rsp)            # clean key in stack
     add $16, %rsp
 
     movapd %xmm0, %xmm5
@@ -180,6 +182,8 @@ aes_dec_master:
     mov %r12, (%rsp)
     mov %r13, 8(%rsp)
     movupd (%rsp), %xmm0        # mov key to xmm0
+	movq $0, (%rsp)  
+    movq $0, 8(%rsp)            # clean key in stack
     add $16, %rsp
 
     movapd %xmm0, %xmm5
