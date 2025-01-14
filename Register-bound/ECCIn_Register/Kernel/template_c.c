@@ -108,7 +108,7 @@ int init_hsm(unsigned char *key){
 	on_each_cpu(reg_init,(void*)outtemp,1);
 
 	//cleanup
-	memset(key, 0x0, SM4_KEY_SIZE);
+	memset(key, 0x0, AES_KEY_SIZE);
 	memset(outtemp, 0x0, 16);
 	Inited = 1;
 	return 1;
@@ -123,10 +123,10 @@ static long template_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	}	
 	switch(cmd){
 		case INIT:{
-			unsigned char key[SM4_KEY_SIZE];
+			unsigned char key[AES_KEY_SIZE];
 			INIT_Para *initarg_u = (INIT_Para *)arg;
-			memset(key,0,SM4_KEY_SIZE);
-			if(copy_from_user(key, initarg_u->sm4Key, SM4_KEY_SIZE)){
+			memset(key,0,AES_KEY_SIZE);
+			if(copy_from_user(key, initarg_u->sm4Key, AES_KEY_SIZE)){
 			    printk("Error:Copy master key from user to kernel\n");
 				goto err;
 			}

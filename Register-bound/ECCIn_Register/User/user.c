@@ -408,21 +408,21 @@ int InitModule()
     int i = 0;
 
     INIT_Para para;
-    unsigned char key[SM4_KEY_SIZE], verify[SM4_KEY_SIZE];
+    unsigned char key[AES_KEY_SIZE], verify[AES_KEY_SIZE];
     int fd;
 
     // Import the AES/SM4 key
     printf("> Generate AES/SM4 128-bits KEY\n");
 
-    unsigned char import_key[SM4_KEY_SIZE] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB,
+    unsigned char import_key[AES_KEY_SIZE] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB,
                                               0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10};
 
-    memset(key, 0, SM4_KEY_SIZE);
-    memcpy(key, import_key, SM4_KEY_SIZE);
+    memset(key, 0, AES_KEY_SIZE);
+    memcpy(key, import_key, AES_KEY_SIZE);
 
-    memset(import_key, 0, SM4_KEY_SIZE);
+    memset(import_key, 0, AES_KEY_SIZE);
 
-    memcpy(para.sm4Key, key, SM4_KEY_SIZE);
+    memcpy(para.sm4Key, key, AES_KEY_SIZE);
 
     fd = open("/dev/nortm", O_RDWR, 0);
     if (fd < 0)
@@ -435,8 +435,8 @@ int InitModule()
         printf("Error while init MASTER KEY\n");
         return 0;
     }
-    memset(key, 0x0, SM4_KEY_SIZE);
-    memset(verify, 0x0, SM4_KEY_SIZE);
+    memset(key, 0x0, AES_KEY_SIZE);
+    memset(verify, 0x0, AES_KEY_SIZE);
     memset(&para, 0, sizeof(para));
     printf("> Init AES/SM4 128-bits KEY succeed\n");
 

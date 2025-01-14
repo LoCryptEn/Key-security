@@ -42,7 +42,7 @@
 
 
 typedef struct _INIT_Para{
-	uint8_t sm4Key[SM4_KEY_SIZE];
+	uint8_t sm4Key[AES_KEY_SIZE];
 }INIT_Para;
 
 typedef struct _ECDSA_Para{
@@ -54,8 +54,8 @@ typedef struct _SM4_Para
 	int 	len;					//the length of plain or cipher
 	int 	mode;					//1:ecb  	2:cbc
 	int 	flag;					//0:dec 	1:enc 
-	uint8_t key[SM4_KEY_LEN];
-	uint8_t	iv[SM4_KEY_LEN];
+	uint8_t key[AES_KEY_LEN];
+	uint8_t	iv[AES_KEY_LEN];
 	uint8_t plain[MAX_PLAIN_LEN];
 	uint8_t cipher[MAX_PLAIN_LEN];
 	unsigned char pin[PIN_LEN];
