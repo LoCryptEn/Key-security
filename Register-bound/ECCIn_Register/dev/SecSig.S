@@ -1,9 +1,9 @@
 .section .data
 .align 16
 AES_KEY:
-    .quad 0x8b30f8e69825901a
-    .quad 0xaa0ce0798ada4348
-
+    .quad 0x5295063b287fd8f6
+    .quad 0x15d294a0893b1c61
+    
 SHUFFLE_MASK:
     .quad 0x08090a0b0c0d0e0f
     .quad 0x0001020304050607
@@ -23,7 +23,7 @@ SHUFFLE_MASK:
     movq    %r14,   %r10
     movq    %r15,   %r11
     
-    // k = (k1 + k2) mod n & save to [r12 | r13 | r14 | r15]
+    // c = (a + b) mod n & save to [r12 | r13 | r14 | r15]
     movq    $0xf3b9cac2fc632551,    %rbx
     subq    %rbx,    %r15
     movq    $0xbce6faada7179e84,    %rbx
@@ -151,10 +151,15 @@ dosecsig:
     vmovq       %xmm27, %r11
 
     // Load H(m) to [r12 | r13 | r14 | r15]
-    movq        160(%rdi), %r15
-    movq        168(%rdi), %r14
-    movq        176(%rdi), %r13
-    movq        184(%rdi), %r12
+    movq        160(%rdi), %r12
+    movq        168(%rdi), %r13
+    movq        176(%rdi), %r14
+    movq        184(%rdi), %r15
+
+    bswap       %r12
+    bswap       %r13
+    bswap       %r14
+    bswap       %r15
 
     addmod
 

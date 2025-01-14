@@ -44,17 +44,6 @@
 
 bignum_montmul_n256:
 
-//  Save more registers to play with
-
-        pushq   %rbx
-        pushq   %r12
-        pushq   %r13
-        pushq   %r14
-        pushq   %r15
-
-//  Copy y into a safe register to start with
-
-        movq    %rdx, %rcx
 
 //  CIOS round 0
         xorq    %r8,    %r8
@@ -78,7 +67,7 @@ bignum_montmul_n256:
         vpextrq $1,     %xmm28, %rax
         mulx    %rax,   %rbx,   %r12 
         adcx    %rbx,   %r11
-        adox    %r13,   %r12
+        adcx    %r13,   %r12
 
         movq    $0xccd1c8aaee00bc4f, %rdx
         mulx    %r8,    %rdx,   %rbx   
@@ -207,13 +196,5 @@ bignum_montmul_n256:
 
         vpinsrq     $1,     %r13,   %xmm27,  %xmm27
         vpinsrq     $0,     %r12,   %xmm27,  %xmm27
-
-//  Restore registers and return
-
-        popq    %r15
-        popq    %r14
-        popq    %r13
-        popq    %r12
-        popq    %rbx
 
         ret
