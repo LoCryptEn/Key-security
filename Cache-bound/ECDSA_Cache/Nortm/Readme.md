@@ -32,7 +32,7 @@ Nortm是支持ECDSA签名算法安全实现的内核模块.
 
 上述命令在Ubuntu16.04环境中能运行成功
 
-注：如果设备支持TSX，请确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
+注：CPU需要支持Intel Transactional Synchronization Extension (Intel TSX)，并确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
 
 
    
