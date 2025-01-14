@@ -30,7 +30,8 @@ Nortm为支持Dilithium后量子密码算法安全实现的内核模块.
 
 上述命令在Ubuntu16.04环境中能运行成功
 
-注1：当前代码没有使用TSX特性，如果设备支持TSX，请在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
+注1：CPU需要支持Intel Transactional Synchronization Extension (Intel TSX)，并确保在Kernel目录下的tsx.h文件中使用宏定义TSX：#define TSX_ENABLE
+
 注2：若使用Safe KeyGen得到Dilithium公私钥文件，那么此文件只能使用在Safe模式下
 
 源代码为科研实践中开发，仅供学习和研究用途。作者不对代码的质量、功能性、稳定性或适用性作出任何承诺和保障。代码可能包含潜在问题，使用者需自行承担由此产生的风险和后果。 代码仅供非商业用途使用，如需在其他场景下使用，请联系作者并获得明确授权。
