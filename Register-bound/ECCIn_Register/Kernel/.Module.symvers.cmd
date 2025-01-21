@@ -1,0 +1,1 @@
+cmd_/home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/Module.symvers := sed 's/\.ko$$/\.o/' /home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/modules.order | scripts/mod/modpost -m -a  -o /home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/Module.symvers -e -i Module.symvers   -T -

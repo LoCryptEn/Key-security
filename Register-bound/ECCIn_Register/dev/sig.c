@@ -18,7 +18,7 @@
 
 const char* N_hex = "FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551";
 BIGNUM *N = NULL;
-extern void dosecsig(uint8_t *inputdata, uint64_t *outputdata);
+extern void dosecsig(uint8_t *inputdata, uint8_t *outputdata);
 extern __m128i AES_ENC(__m128i message, __m128i key);
 
 unsigned char *encrypt(unsigned char *key, unsigned char *message, size_t length)
@@ -214,8 +214,8 @@ int SecSig()
     memcpy(inputdata + 128, r, 32);
     memcpy(inputdata + 160, h_m, 32);
 
-    uint64_t *outputdata = malloc(8 * sizeof(uint64_t));
-    memset(outputdata, 0, 8 * sizeof(uint64_t));
+    uint8_t *outputdata = malloc(64 * sizeof(uint8_t));
+    memset(outputdata, 0, 64 * sizeof(uint8_t));
     dosecsig(inputdata, outputdata);
 
     // output[3-0] to a BN
