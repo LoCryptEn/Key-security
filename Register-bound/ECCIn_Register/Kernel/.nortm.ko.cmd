@@ -1,1 +1,0 @@
-cmd_/home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/nortm.ko := ld -r  -m elf_x86_64 -z noexecstack   --build-id=sha1  -T scripts/module.lds -o /home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/nortm.ko /home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/nortm.o /home/fy/Key-security/Register-bound/ECCIn_Register/Kernel/nortm.mod.o;  true
