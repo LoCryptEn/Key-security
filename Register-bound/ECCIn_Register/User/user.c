@@ -304,13 +304,6 @@ int InitModule()
         printf("Failed to generate random key using OpenSSL\n");
         return 1;
     }
-    // print the key
-    printf("> AES/SM4 128-bits KEY: ");
-    for (int i = 0; i < AES_KEY_SIZE; i++)
-    {
-        printf("%02x", key[i]);
-    }
-
     memcpy(para.aesKey, key, AES_KEY_SIZE);
     printf("> Generate AES/SM4 128-bits KEY\n");
 
@@ -386,9 +379,6 @@ int InitModule()
     // AES ENC k1
     unsigned char k1_bytes[32];
     BN_bn2bin(k1, k1_bytes);
-    // print the k1
-    char *k1_str = BN_bn2hex(k1);
-    printf("> k1: %s\n", k1_str);
 
     printf("> Generate Enc(k1) \n");
     unsigned char *enc_k1 = encrypt(key, k1_bytes, 32);
@@ -406,10 +396,6 @@ int InitModule()
     // AES ENC d
     unsigned char d_bytes[32];
     BN_bn2bin(d, d_bytes);
-
-    // print d
-    char *d_str = BN_bn2hex(d);
-    printf("> d: %s\n", d_str);
     
     printf("> Generate Enc(d) \n");
     unsigned char *enc_d = encrypt(key, d_bytes, 32);
@@ -432,10 +418,6 @@ int InitModule()
     // AES ENC a
     unsigned char a_bytes[32];
     BN_bn2bin(a, a_bytes);
-
-    // print a
-    char *a_str = BN_bn2hex(a);
-    printf("> a: %s\n", a_str);
 
     unsigned char *enc_a = encrypt(key, a_bytes, 32);
 
