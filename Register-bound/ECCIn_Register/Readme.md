@@ -3,6 +3,9 @@ Nortm为支持ECDSA签名的安全实现的内核模块；
 
 ECDSA私钥受寄存器保护，签名运算中涉及敏感数据的运算在寄存器中实现，防止来自DRAM的攻击.
 
+### 签名流程
+![签名流程](./images/RegKeyECC.png)
+
 ### Kernel目录
 1. make (编译)
 2. sudo make install（安装内核模块）

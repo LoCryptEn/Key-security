@@ -41,16 +41,17 @@
 
 #include "ioc.h"
 
-
 MODULE_AUTHOR("<>");
 MODULE_DESCRIPTION("Crypto engine driver");
 MODULE_LICENSE("GPL");
 
-struct Template_dev{
-	struct miscdevice *cdev;		
+struct Template_dev
+{
+	struct miscdevice *cdev;
 };
 
-unsigned long   do_secsig(unsigned long *result, unsigned long  *r, unsigned long  *d, unsigned long  *z  );
+extern void dosecsig(unsigned char *inputdata, unsigned char *outputdata);
+
 static void __init init_template__dev(void);
 static long template_ioctl(struct file *, unsigned int, unsigned long);
 
@@ -66,49 +67,51 @@ static struct miscdevice innerDev = {
 	.fops = &template_fops,
 };
 
-static void __init init_template__dev(void){
+static void __init init_template__dev(void)
+{
 	template_dev.cdev = &innerDev;
 }
 
 char *module_name = "nortm";
 
 struct semaphore sem;
-//module_param(debug, bool,S_IRUSR);
 
-
-
-void printhex(unsigned char * output, int len){
-    int i = 0;
-    for(i = 0; i < len; i++)
-    {
-        printk(" %02x", output[i]);
-    }
+void printhex(unsigned char *output, int len)
+{
+	int i = 0;
+	for (i = 0; i < len; i++)
+	{
+		printk(" %02x", output[i]);
+	}
 }
 
-int __init init_template(void){
+int __init init_template(void)
+{
 	int rc;
 	init_template__dev();
 	rc = misc_register(template_dev.cdev);
-	sema_init(&sem,1);
-	
+	sema_init(&sem, 1);
+
 	return 0;
 }
 
 void reg_init(void *key);
 
-int init_hsm(unsigned char *key){
-	
+int init_hsm(unsigned char *key)
+{
+
 	unsigned char outtemp[16];
 
-	if(Inited!=0){
-	 	printk(KERN_INFO "Error:MASTER_KEY Already Inited\n");
-	 	return 0;
+	if (Inited != 0)
+	{
+		printk(KERN_INFO "Error: MASTER_KEY Already Inited\n");
+		return 0;
 	}
 	memcpy(outtemp, key, 16);
-	on_each_cpu(reg_init,(void*)outtemp,1);
+	on_each_cpu(reg_init, (void *)outtemp, 1);
 
-	//cleanup
-	memset(key, 0x0, SM4_KEY_SIZE);
+	// cleanup
+	memset(key, 0x0, AES_KEY_SIZE);
 	memset(outtemp, 0x0, 16);
 	Inited = 1;
 	return 1;
@@ -116,119 +119,84 @@ int init_hsm(unsigned char *key){
 
 static long template_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	
-	if((cmd!=INIT && cmd!=SELF_TEST) &&(ServiceAvailable!=1 && Inited !=1))
+
+    if ((cmd != INIT && cmd != SELF_TEST) && 
+        (ServiceAvailable != 1 && Inited != 1)) {
+        printk(KERN_ERR "Service not available or not initialized\n");
+        return -EINVAL;
+    }
+
+	switch (cmd)
 	{
-		goto err;
-	}	
-	switch(cmd){
-		case INIT:{
-			unsigned char key[SM4_KEY_SIZE];
+		case INIT:
+		{
+			unsigned char key[AES_KEY_SIZE];
 			INIT_Para *initarg_u = (INIT_Para *)arg;
-			memset(key,0,SM4_KEY_SIZE);
-			if(copy_from_user(key, initarg_u->sm4Key, SM4_KEY_SIZE)){
-			    printk("Error:Copy master key from user to kernel\n");
-				goto err;
+			memset(key, 0, AES_KEY_SIZE);
+			if (copy_from_user(key, initarg_u->aesKey, AES_KEY_SIZE)) {
+				printk(KERN_ERR "Error: Copy master key from user to kernel\n");
+				return -EFAULT;
 			}
-			if(init_hsm(key) != 1)
-				goto err;	
+
+			if (init_hsm(key) != 1) {
+				printk(KERN_ERR "HSM initialization failed\n");
+				return -EINVAL;
+			}
 			break;
 		}
-		
-		case ECDSA_OP:{			
-			////
-			ECDSA_Para *ecdsamessage = (ECDSA_Para *) arg;
+
+		case ECDSA_OP:
+		{
 			unsigned long flags;
-			int i;
-			unsigned long  A[25] __attribute__((aligned(64))) = { 0 };
-			unsigned long  Res[15]  = { 0 };
-			copy_from_user(A, ecdsamessage->messages, 200);
+			int i = 0;
+			ECDSA_Para *eccmessage = (ECDSA_Para *)arg;
+			unsigned char buffer[ECDSA_SIG_SIZE] __attribute__((aligned(16))) = {0};	
+			unsigned char inputdata[ECDSA_SIG_SIZE] __attribute__((aligned(16))) = {0};
+			unsigned char outputdata[ECDSA_SIG_SIZE] __attribute__((aligned(16))) = {0};
 
-			unsigned long RA[4]={0};  
-			unsigned long DA[4]={0};  
-    		unsigned long ZA[8]={0};  
-
-			RA[0]=A[0];
-			RA[1]=A[1];
-			RA[2]=A[2];
-			RA[3]=A[3];
-
-
-			DA[0]=A[4];
-			DA[1]=A[5];
-			DA[2]=A[6];
-			DA[3]=A[7];
-	
-
-			ZA[0]=A[8];
-			ZA[1]=A[9];
-			ZA[2]=A[10];
-			ZA[3]=A[11];
-			ZA[4]=A[12];
-    		ZA[5]=A[13];
-    		ZA[6]=A[14];
-    		ZA[7]=A[15];
-
-			Res[0]=A[16];
-			Res[1]=A[17];
-			Res[2]=A[18];
-			Res[3]=A[19];
-
-			Res[4]=A[20];
-			Res[5]=A[21];
-			Res[6]=A[22];
+			// Copy input data from user space
+			if (copy_from_user(buffer, eccmessage->message, ECDSA_SIG_SIZE))
+			{
+				printk(KERN_ERR "Failed to copy input data from user space\n");
+				return -EFAULT;
+			}
 
 			preempt_disable();
 			get_cpu();
 			local_irq_save(flags);
 
-			do_secsig(Res, RA, DA, ZA); // the value of Res:  Sig
-			/*
-    	 	for(i=0; i<15; ++i)
+			// Call dosecsig function
+			for (i = 0; i < ECDSA_SIG_SIZE; ++i)
 			{
-			printk ("Res[%d]:        %lx\n",i,Res[i]);
-			}	
-			*/			
+				inputdata[i] = buffer[i];
+			}
 			
+			dosecsig(inputdata, outputdata);
+
 			local_irq_restore(flags);
 			put_cpu();
 			preempt_enable();
+			
+			for (i = 0; i < ECDSA_SIG_SIZE; ++i)
+			{
+				buffer[i] = outputdata[i];
+			}
 
-			A[0]=Res[0];
-			A[1]=Res[1];
-			A[2]=Res[2];
-			A[3]=Res[3];
-			A[4]=Res[4];
-			A[5]=Res[5];
-			A[6]=Res[6];
-			A[7]=Res[7];
-			A[8]=Res[8];
-			A[9]=Res[9];
-			A[10]=Res[10];
-			A[11]=Res[11];
-			A[12]=Res[12];
-			A[13]=Res[13];
-			A[14]=Res[14];
-
-			copy_to_user(ecdsamessage->messages, A, 200);
+			// Copy result back to user space
+			copy_to_user(eccmessage->message, buffer, ECDSA_SIG_SIZE);
 			
 			break;
-			
 		}
-		default:
-			goto err;	
-		
+	
 	}
-	return 0;
-err:
-	return -ENOTTY;
-}
 
+	return 0;
+}
 
 void __exit cleanup_template(void)
 {
 	misc_deregister(template_dev.cdev);
-	printk(KERN_DEBUG "dirver %s unloaded\n",module_name );
+	printk(KERN_DEBUG "dirver %s unloaded\n", module_name);
 }
 module_init(init_template);
 module_exit(cleanup_template);

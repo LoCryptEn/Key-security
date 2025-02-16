@@ -1,5 +1,6 @@
 all:
-	gcc -g -o user user.c  -lpthread -lcrypto -lssl
+	gcc -mavx512f -g -o user aes.S user.c -lpthread -lcrypto -lssl
 clean:
 	rm -rf user
+	rm -rf *.bin
 
