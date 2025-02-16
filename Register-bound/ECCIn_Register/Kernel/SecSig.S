@@ -57,6 +57,24 @@ SHUFFLE_MASK:
 
 dosecsig:
 
+    subq $128,  %rsp
+
+    movq    %rdi,   (%rsp)
+    movq    %rsi,   8(%rsp)
+    movq    %rdx,   16(%rsp)  
+    movq    %r14,   24(%rsp)
+    movq    %r15,   32(%rsp)
+    movq    %rax,   40(%rsp)
+    movq    %rbx,   48(%rsp)
+    movq    %r8,    56(%rsp)
+    movq    %r9,    64(%rsp)
+    movq    %r10,   72(%rsp)
+    movq    %r11,   80(%rsp)
+    movq    %r12,   88(%rsp)
+    movq    %r13,   96(%rsp)
+    movq    %rcx,   104(%rsp)
+
+
     movq       %dr0,    %rax
     movq       %dr1,    %rbx
     bswap      %rax
@@ -88,7 +106,7 @@ dosecsig:
     vpshufb     %xmm15,    %xmm0,  %xmm0
     pextrq      $1,     %xmm0,  %r10
     vmovq       %xmm0,  %r11
-
+    
     // read k2
     movq        32(%rdi), %r15
     movq        40(%rdi), %r14
@@ -177,5 +195,23 @@ dosecsig:
     vmovdqa64   %xmm13, 16(%rsi)
     vmovdqa64   %xmm27, 32(%rsi)
     vmovdqa64   %xmm26, 48(%rsi)
+
+    movq    (%rsp),     %rdi
+    movq    8(%rsp),     %rsi
+    movq    16(%rsp),     %rdx
+    movq    24(%rsp),     %r14
+    movq    32(%rsp),     %r15
+    movq    40(%rsp),     %rax
+    movq    48(%rsp),     %rbx
+    movq    56(%rsp),     %r8
+    movq    64(%rsp),     %r9
+    movq    72(%rsp),     %r10
+    movq    80(%rsp),     %r11
+    movq    88(%rsp),     %r12
+    movq    96(%rsp),     %r13
+    movq    104(%rsp),  %rcx
+
+    addq    $128,  %rsp    
+
 
     ret

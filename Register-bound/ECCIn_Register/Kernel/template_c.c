@@ -166,6 +166,11 @@ static long template_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 			local_irq_save(flags);
 
 			// Call dosecsig function
+			for (i = 0; i < ECDSA_SIG_SIZE; ++i)
+			{
+				inputdata[i] = buffer[i];
+			}
+			
 			dosecsig(inputdata, outputdata);
 
 			local_irq_restore(flags);
