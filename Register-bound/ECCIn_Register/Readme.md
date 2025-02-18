@@ -7,7 +7,7 @@ ECDSA私钥受寄存器保护，签名运算中涉及敏感数据的运算在寄
 1. make (编译)
 2. sudo make install（安装内核模块）
 3. lsmod |grep nortm （查看内核模块是否安装成功）
-chmod 777 /dev/nortm (修改权限)
+4. chmod 777 /dev/nortm (修改权限)
 
 ### User目录
 1. make （编译）
