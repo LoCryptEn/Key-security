@@ -78,11 +78,10 @@ int SecSig()
     kG = EC_POINT_new(group);
 
     // 1: load pub_key
-    printf("> Load Pub\n");
     FILE *pub_file = fopen("Pub.bin", "rb");
     if (pub_file == NULL)
     {
-        printf("Failed to open Pub.bin\n");
+        printf("! Failed to open Pub.bin\n");
         return 0;
     }
     unsigned char buf_Q[buf_len];
@@ -96,11 +95,10 @@ int SecSig()
     EC_KEY_set_public_key(ec_key, pub_key);
 
     // 2: load k1*G
-    printf("> Load k1*G\n");
     FILE *k1G_file = fopen("k1G.bin", "rb");
     if (k1G_file == NULL)
     {
-        printf("Failed to open k1G.bin\n");
+        printf("! Failed to open k1G.bin\n");
         return 0;
     }
     unsigned char bufK1G[33];
@@ -112,12 +110,10 @@ int SecSig()
 
 
     // 3: load Enc(k1), Enc(d)
-
-    printf("> Load Enc(k1), Enc(d)\n");
     FILE *fp = fopen("enc_k1.bin", "r");
     if (fp == NULL)
     {
-        printf("Error opening file\n");
+        printf("! Error opening file\n");
         return 1;
     }
 
@@ -128,7 +124,7 @@ int SecSig()
     fp = fopen("enc_d.bin", "r");
     if (fp == NULL)
     {
-        printf("Error opening file\n");
+        printf("! Error opening file\n");
         return 1;
     }
 
@@ -139,7 +135,7 @@ int SecSig()
     fp = fopen("enc_a.bin", "r");
     if (fp == NULL)
     {
-        printf("Error opening file\n");
+        printf("! Error opening file\n");
         return 1;
     }
 
@@ -220,12 +216,12 @@ int SecSig()
     int fd = open("/dev/nortm", O_RDWR, 0);
     if (fd < 0)
     {
-        printf("Error while access Kernel Module\n");
+        printf("! Error while access Kernel Module\n");
         return 0;
     }
     if (ioctl(fd, ECDSA_OP, &eccmessage) == -1)
     {
-        printf("Error while signing\n");
+        printf("! Error while signing\n");
         return 0;
     }
     close(fd);
@@ -301,7 +297,7 @@ int InitModule()
 
     if (!RAND_bytes(key, AES_KEY_SIZE))
     {
-        printf("Failed to generate random key using OpenSSL\n");
+        printf("! Failed to generate random key using OpenSSL\n");
         return 1;
     }
     memcpy(para.aesKey, key, AES_KEY_SIZE);
@@ -322,7 +318,6 @@ int InitModule()
         fprintf(stderr, "! Error generating random k1\n");
         return 1;
     }
-    printf("> Generate k1\n");
 
     if (!BN_rand(d, 256, BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
     {
@@ -330,7 +325,6 @@ int InitModule()
         return 1;
     }
 
-    printf("> Generate secret key d\n");
     EC_POINT *Q = EC_POINT_new(group);
     if (!EC_POINT_mul(group, Q, d, NULL, NULL, ctx))
     {
@@ -347,7 +341,7 @@ int InitModule()
     FILE *dG_file = fopen("Pub.bin", "wb");
     if (dG_file == NULL)
     {
-        printf("Failed to open Pub.bin\n");
+        printf("! Failed to open Pub.bin\n");
         return 0;
     }
     fwrite(bufQ, 1, buf_len, dG_file);
@@ -370,7 +364,7 @@ int InitModule()
     FILE *k1G_file = fopen("k1G.bin", "wb");
     if (k1G_file == NULL)
     {
-        printf("Failed to open k1G.bin\n");
+        printf("! Failed to open k1G.bin\n");
         return 0;
     }
     fwrite(bufk1G, 1, buf_len, k1G_file);
@@ -380,14 +374,13 @@ int InitModule()
     unsigned char k1_bytes[32];
     BN_bn2bin(k1, k1_bytes);
 
-    printf("> Generate Enc(k1) \n");
     unsigned char *enc_k1 = encrypt(key, k1_bytes, 32);
 
     // write Enc(k1) to file
     FILE *enc_k1_file = fopen("enc_k1.bin", "wb");
     if (enc_k1_file == NULL)
     {
-        printf("Failed to open enc_k1.bin\n");
+        printf("! Failed to open enc_k1.bin\n");
         return 0;
     }
     fwrite(enc_k1, 1, 32, enc_k1_file);
@@ -397,14 +390,13 @@ int InitModule()
     unsigned char d_bytes[32];
     BN_bn2bin(d, d_bytes);
     
-    printf("> Generate Enc(d) \n");
     unsigned char *enc_d = encrypt(key, d_bytes, 32);
 
     // write Enc(d) to file
     FILE *enc_d_file = fopen("enc_d.bin", "wb");
     if (enc_d_file == NULL)
     {
-        printf("Failed to open enc_d.bin\n");
+        printf("! Failed to open enc_d.bin\n");
         return 0;
     }
     fwrite(enc_d, 1, 32, enc_d_file);
@@ -424,7 +416,7 @@ int InitModule()
     FILE *enc_a_file = fopen("enc_a.bin", "wb");
     if (enc_a_file == NULL)
     {
-        printf("Failed to open enc_a.bin\n");
+        printf("! Failed to open enc_a.bin\n");
         return 0;
     }
     fwrite(enc_a, 1, 32, enc_a_file);
@@ -442,12 +434,12 @@ int InitModule()
     fd = open("/dev/nortm", O_RDWR, 0);
     if (fd < 0)
     {
-        printf("Error while access Kernel Module\n");
+        printf("! Error while access Kernel Module\n");
         return 0;
     }
     if (ioctl(fd, INIT, &para) == -1)
     {
-        printf("Error while init MASTER KEY\n");
+        printf("! Error while init MASTER KEY\n");
         return 0;
     }
     memset(key, 0x0, AES_KEY_SIZE);
@@ -464,8 +456,8 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         printf("Usage: %s [1|2]\n", argv[0]);
-        printf("  1 => Initialize module (set up AES key)\n");
-        printf("  2 => Create a secure ECDSA signature\n");
+        printf("\t1 => Initialize module (set up AES key)\n");
+        printf("\t2 => Create a secure ECDSA signature\n");
         return 1;
     }
 
@@ -479,7 +471,7 @@ int main(int argc, char **argv)
     }
     else if (type == 2)
     {
-        printf("* Stage 2: Secure ECDSA Signing\n");
+        printf("* Stage 2: Secure ECDSA Signing in Register\n");
         printf("--------------------------------------------------------------\n");
         SecSig();
         printf("--------------------------------------------------------------\n");
