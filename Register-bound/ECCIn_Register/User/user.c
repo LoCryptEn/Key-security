@@ -180,9 +180,6 @@ int SecSig()
     } while (BN_is_zero(R));
 
 
-    // print the r
-    char *r_str = BN_bn2hex(R);
-    printf("> r: %s\n", r_str);
 
 
     BIGNUM *r_mont = BN_new();
@@ -213,6 +210,7 @@ int SecSig()
     ECDSA_Para eccmessage;
     memcpy(eccmessage.message, inputdata, 32 * 6);
 
+    printf("> Signing Message in CPU Register\n");
     int fd = open("/dev/nortm", O_RDWR, 0);
     if (fd < 0)
     {
@@ -245,6 +243,9 @@ int SecSig()
     BN_mod_inverse(ak_inv, ak, order, ctx);
 
     BN_mod_mul(S, ak_inv, as, order, ctx);
+    // print the (r, s)
+    char *r_str = BN_bn2hex(R);
+    printf("> r: %s\n", r_str);
 
     char *s_str = BN_bn2hex(S);
     printf("> s: %s\n", s_str);
