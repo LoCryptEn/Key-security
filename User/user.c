@@ -292,22 +292,24 @@ message[145]=0xa14574dcccc78fd0;
 para.messages[144] = message[144];
 para.messages[145] = message[145];
 
-message[160] = 0xa7cc614d5197c537;/*iqmp(+16 lines) q-1 mod p*/
-message[161] = 0xb6f1be85e23c279e;
-message[162] = 0x14cfa343bd937442;
-message[163] = 0x4fa2515a87e75add;
-message[164] = 0x7f7e61238a7d7268;
-message[165] = 0x96bcccdb03d178e3;
-message[166] = 0x78b1ceb925d6281e;
-message[167] = 0x111f8fbd39e32aa8;
-message[168] = 0x2b8319a74d26a314;
-message[169] = 0xd553e8ca3dc9e3b3;
-message[170] = 0xf96158d571c75f3a;
-message[171] = 0xabb5cc5731fcd0cf;
-message[172] = 0x955c3b60d7f7d0f7;
-message[173] = 0xdb2fa973c10d663c;
-message[174] = 0x10e56d1a70364d64;
-message[175] = 0x3b77875466a3ba2c;
+/*iqmp(+16 lines) q-1 mod p*/
+message[160]=0x7ae884db1a4d2b84;
+message[161]=0x6d34da4ed4b3d783;
+message[162]=0xc32bbcfae9f9f871;
+message[163]=0xdf4eadd28a7df054;
+message[164]=0xd78e1d5ecba50c5b;
+message[165]=0xfd4f05bc1aeb7338;
+message[166]=0x3798eb7e2f93aadb;
+message[167]=0xb57409082360eeea;
+message[168]=0x3f8f2f5ce1eb5771;
+message[169]=0x4ab98f79f7f896b7;
+message[170]=0x9ca18bf5d2b08508;
+message[171]=0xcc3759425bc500c5;
+message[172]=0x071569b1beac93c7;
+message[173]=0x190b1c8fddb55218;
+message[174]=0x4a14263254b22434;
+message[175]=0xa564d0bf50408695;
+
 for(i=160; i<176; ++i)
 {
 	para.messages[i] = message[i];
