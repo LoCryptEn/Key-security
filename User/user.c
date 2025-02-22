@@ -183,9 +183,12 @@ for(i=48; i<64; ++i)
 
 
 
-message[64]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
+//message[64]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
+//para.messages[64] = message[64];
+message[64]=0x029a0c33eec562b6;
+message[65]=0x2921aae5c4bfb413;
 para.messages[64] = message[64];
-
+para.messages[65] = message[65];
 
 
 //enc-q//
@@ -282,9 +285,12 @@ for(i=128; i<144; ++i)
 }
 
 
-message[144]=0x30b922942b001ae7;/*q0 (+1 line) -q^{-1} mod 2^64*/
+//message[144]=0x30b922942b001ae7;/*q0 (+1 line) -q^{-1} mod 2^64*/
+//para.messages[144] = message[144];
+message[144]=0x20095b1434b85247;
+message[145]=0xa14574dcccc78fd0;
 para.messages[144] = message[144];
-
+para.messages[145] = message[145];
 
 message[160] = 0xa7cc614d5197c537;/*iqmp(+16 lines) q-1 mod p*/
 message[161] = 0xb6f1be85e23c279e;
