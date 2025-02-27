@@ -218,7 +218,11 @@ temp[77] = 0xc29ffa0049f8a6b8;
 temp[78] = 0x7afa631a107c1457;
 temp[79] = 0x0b80229a17179d33;
 
-temp[80]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
+//temp[80]=0x51b08be00dd0a787;/*p0 (+1 line) -p^{-1} mod 2^64*/
+for(j=0; j<2; ++j)
+{
+	temp[j+80] = A[j+64];
+}
 
 Comcq(pcp, temp);/*第一个参数保存在rdi ,第二个参数保存在rsi*/ /*c mod p = c2*R mod p + c1 mod p*/
 
@@ -276,8 +280,13 @@ temp[77] = 0x4f62dad58b04a953;
 temp[78] = 0x0e5b1db87764b57d;
 temp[79] = 0x3686fdcf1acfa5f4;
 
-temp[80]=0x30b922942b001ae7;/*q0 (+1 line) -q^{-1} mod 2^64*/
-
+//temp[80]=0x30b922942b001ae7;
+//temp[80]=0x20095b1434b85247
+//temp[81]=0xa14574dcccc78fd0/*q0 (+1 line) -q^{-1} mod 2^64*/
+for(j=0; j<2; ++j)
+{
+	temp[j+80] = A[j+144];
+}
 Comcq(qcq, temp);/**/
 
 for(i=0; i<16; ++i)/*(+4 lines) c*R mod p 的计算结果Cp取代原来c2的位置*/
