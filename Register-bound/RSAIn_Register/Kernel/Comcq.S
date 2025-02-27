@@ -4755,8 +4755,8 @@ Comcq:
 	vmovdqu		96(%rsi), B2xmm		#M[12] M[13]
 	vmovdqu		112(%rsi), B3xmm	#M[14] M[15]
 */
-    movq    640(%rsi), %rax
-    movq	%rax, n0
+    #movq    640(%rsi), %rax
+    #movq	%rax, n0
 
 	### new add-- aes-dec-- ###
 	vpxorq  %ymm1,     %ymm1,     %ymm1
@@ -4766,6 +4766,11 @@ Comcq:
     movq    $0xFEDCBA9876543210,    %rax
     vmovq   %rax,   %xmm1
     valignq     $3, %ymm0, %ymm1,  %ymm0
+      
+      vmovdqu	    640(%rsi), %xmm15
+      aes_dec
+      vmovq %xmm15,%rax
+      movq	%rax, n0
 
 	vmovdqu		16(%rsi), %xmm15
 	aes_dec

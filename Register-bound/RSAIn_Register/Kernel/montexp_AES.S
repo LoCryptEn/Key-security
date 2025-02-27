@@ -70,6 +70,16 @@ montexp1024_AES_p:
 
 	vmovdqu64 %zmm15 ,%zmm7 # no forget !!!!!
 
+	### load p0 to M0 and Dec ###
+	vmovdqu		512(%rsi), M0xmm #M0xmm is xmm8 
+	vmovdqu M0xmm, %xmm15
+	aes_dec
+	vmovdqu %xmm15, M0xmm
+	### mov p0 from M0 to n0 ###
+	### high 64bit is padding, is all zero ###
+	vmovq				M0xmm, %rax
+	movq				%rax, n0
+
 	vmovdqu64 (%rsi), %zmm16
 	vmovdqu64 64(%rsi), %zmm17
 
@@ -153,14 +163,14 @@ montexp1024_AES_p:
 
 	### load p0 to M0 and Dec ###
 	addq		$512, %rsi
-	vmovdqu		(%rsi), M0xmm
+	#vmovdqu		(%rsi), M0xmm
 
 
 
 	### mov p0 from M0 to n0 ###
 	### high 64bit is padding, is all zero ###
-	vmovq				M0xmm, %rax
-	movq				%rax, n0
+	#vmovq				M0xmm, %rax
+	#movq				%rax, n0
 
 
 	### rerange p to M ###
@@ -453,6 +463,15 @@ montexp1024_AES_q:
     valignq     $3, %ymm0, %ymm1,  %ymm0
 
 	vmovdqu64 %zmm15 ,%zmm7 # no forget !!!!!
+	### load p0 to M0 and Dec ###
+	vmovdqu		512(%rsi), M0xmm #M0xmm is xmm8 
+	vmovdqu M0xmm, %xmm15
+	aes_dec
+	vmovdqu %xmm15, M0xmm
+	### mov p0 from M0 to n0 ###
+	### high 64bit is padding, is all zero ###
+	vmovq				M0xmm, %rax
+	movq				%rax, n0
 
 	vmovdqu64 (%rsi), %zmm16
 	vmovdqu64 64(%rsi), %zmm17
@@ -534,13 +553,13 @@ montexp1024_AES_q:
 
 	### load q0 to M0 and Dec ###
 	addq		$512, %rsi
-	vmovdqu		(%rsi), M0xmm
+	#vmovdqu		(%rsi), M0xmm
 
 
 	### mov p0 from M0 to n0 ###
 	### high 64bit is padding, is all zero ###
-	vmovq				M0xmm, %rax
-	movq				%rax, n0
+	#vmovq				M0xmm, %rax
+	#movq				%rax, n0
 
 
 	### rerange q to M ###
