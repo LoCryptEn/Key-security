@@ -2966,14 +2966,87 @@ mul_qinv:
 
 	addq		$1280, %rsi	# for qinv which stored in 1280(%rsi)
 
-	vmovdqu		(%rsi), A0xmm		
-	vmovdqu		16(%rsi), A1xmm		
-	vmovdqu		32(%rsi), A2xmm		
-	vmovdqu		48(%rsi), A3xmm		
-	vmovdqu		64(%rsi), B0xmm		
-	vmovdqu		80(%rsi), B1xmm		
-	vmovdqu		96(%rsi), B2xmm		
-	vmovdqu		112(%rsi), B3xmm	
+	vpxorq  %ymm1,     %ymm1,     %ymm1
+    movq    $0x0123456789ABCDEF,    %rax
+    vmovq   %rax,   %xmm1
+    valignq     $1, %ymm0, %ymm1,  %ymm0
+    movq    $0xFEDCBA9876543210,    %rax
+    vmovq   %rax,   %xmm1
+    valignq     $3, %ymm0, %ymm1,  %ymm0
+	vmovdqu64 %zmm15 ,%zmm7 # no forget !!!!!
+	
+	vmovdqu64 (%rsi), %zmm16
+	vmovdqu64 64(%rsi), %zmm17
+
+	   mov   $0x03, %eax # 0000 0011
+    kmovd %eax, %k1    
+    mov   $0x0C, %eax # 0000 1100
+    kmovd %eax, %k2
+    mov   $0x30, %eax # 0011 0000
+    kmovd %eax, %k3
+    mov   $0xC0, %eax # 1100 0000
+    kmovd %eax, %k4
+
+    vpcompressq %zmm16,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k1}
+
+	vpcompressq %zmm16,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k2}
+
+    vpcompressq %zmm16,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k3}
+
+    vpcompressq %zmm16,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm16 {%k4}
+
+	vpcompressq %zmm17,%zmm15 {%k1}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k1}
+
+	vpcompressq %zmm17,%zmm15 {%k2}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k2}
+
+    vpcompressq %zmm17,%zmm15 {%k3}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k3}
+
+    vpcompressq %zmm17,%zmm15 {%k4}{z}
+	aes_dec
+	vpexpandq %zmm15,%zmm17 {%k4}
+	
+	vmovdqu64 %zmm7 ,%zmm15
+
+    
+    vpxorq  %zmm0,     %zmm0,     %zmm0
+	valignq $0x00,%zmm16 ,%zmm0, %zmm0{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm1,     %zmm1,     %zmm1
+	valignq $0x02,%zmm16 ,%zmm1, %zmm1{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm2,     %zmm2,     %zmm2
+	valignq $0x04,%zmm16,%zmm2, %zmm2{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm3,     %zmm3,     %zmm3
+	valignq $0x06,%zmm16,%zmm3, %zmm3{%k1}{z} #shift 6*64
+
+	vpxorq  %zmm4,     %zmm4,     %zmm4
+	valignq $0x00,%zmm17,%zmm4, %zmm4{%k1}{z} #shift 0*64
+
+    vpxorq  %zmm5,     %zmm5,     %zmm5
+	valignq $0x02,%zmm17,%zmm5, %zmm5{%k1}{z} #shift 2*64
+
+	vpxorq  %zmm6,     %zmm6,     %zmm6
+	valignq $0x04,%zmm17, %zmm6, %zmm6{%k1}{z} #shift 4*64
+
+    vpxorq  %zmm7,     %zmm7,     %zmm7
+	valignq $0x06,%zmm17,%zmm7, %zmm7{%k1}{z} #shift 6*64
+
+
 
 	### rerange qinv to A ###
 
