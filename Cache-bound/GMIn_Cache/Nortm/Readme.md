@@ -20,7 +20,7 @@ Nortm为支持SM2、SM3、SM4等国产密码算法安全实现的内核模块.
 	- 在User目录下，执行make命令，编译测试程序；
 4. 用户态程序运行
 	- 查看测试项：./user
-	- 依次进行功能测试：./user X [options paramter],将X换为具体的测试项
+	- 依次进行功能测试：./user X [options parameter],将X换为具体的测试项
 		- -d 表示使用调试模式
 		- -i 表示输入文件
 		- -k 表示密钥文件
