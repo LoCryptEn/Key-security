@@ -7,3 +7,5 @@
 **/*.mod
 **/*.mod.c
 **/build/
+**/script/hexfile.txt
+**/script/*.bin
